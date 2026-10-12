@@ -1,8 +1,9 @@
-# Cloudflare Workers & Pages Configuration
-name = "agent-reach-dashboard"
+# Cloudflare Workers & Static Assets Configuration
+name = "agent-reach"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
 [assets]
 directory = "./dashboard"
 binding = "ASSETS"
+not_found_handling = "single-page-application"

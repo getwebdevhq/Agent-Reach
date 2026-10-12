@@ -7,7 +7,7 @@
     "build": "node -e \"console.log('Build completed: dashboard/ ready for Cloudflare')\"",
     "start": "npx -y serve dashboard -p 3000",
     "deploy": "wrangler deploy",
-    "deploy:pages": "wrangler pages deploy dashboard --project-name=agent-reach-dashboard"
+    "deploy:pages": "wrangler pages deploy dashboard --project-name=agent-reach"
   },
   "devDependencies": {
     "wrangler": "^4.149.0"
