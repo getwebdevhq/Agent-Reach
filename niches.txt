@@ -1,0 +1,18 @@
+# Enter your target niches (one per line or comma-separated)
+# Lines starting with # are ignored
+
+hair salon
+plumbing
+roofing
+bakery
+landscaping
+cleaning service
+tattoo artist
+dentist
+auto detailing
+catering
+accounting
+fitness trainer
+remodeling
+electrician
+interior design

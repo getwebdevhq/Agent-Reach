@@ -1,0 +1,20 @@
+# Cloudflare Pages Security & Caching Headers
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Access-Control-Allow-Origin: *
+
+# Cache static assets efficiently
+/*.css
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.js
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.json
+  Cache-Control: public, max-age=3600
+
+/leads/*
+  Cache-Control: public, max-age=3600

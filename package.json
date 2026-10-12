@@ -1,0 +1,21 @@
+{
+  "name": "uk-tree-surgeons-lead-dashboard",
+  "version": "1.0.0",
+  "description": "Interactive lead intelligence dashboard for 100 verified UK independent tree surgeons without websites",
+  "homepage": "https://agent-reach-dashboard.pages.dev",
+  "scripts": {
+    "build": "node -e \"console.log('Build completed: dashboard/ ready for Cloudflare Pages')\"",
+    "start": "npx -y serve dashboard -p 3000",
+    "deploy": "wrangler pages deploy dashboard --project-name=agent-reach-dashboard"
+  },
+  "keywords": [
+    "cloudflare-pages",
+    "lead-generation",
+    "dashboard",
+    "tree-surgeons",
+    "arborist",
+    "united-kingdom"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}

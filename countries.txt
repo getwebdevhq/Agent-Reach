@@ -1,0 +1,14 @@
+# Enter your target countries or specific cities (one per line)
+# Lines starting with # are ignored
+
+United Kingdom
+United States
+Canada
+Australia
+London
+New York
+Toronto
+Sydney
+Manchester
+Miami
+Dubai

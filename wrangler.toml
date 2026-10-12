@@ -1,0 +1,7 @@
+# Cloudflare Pages / Wrangler Configuration
+name = "agent-reach-dashboard"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "dashboard"
+
+[site]
+bucket = "./dashboard"

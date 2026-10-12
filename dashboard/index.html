@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UK Tree Surgeons Lead Intelligence Dashboard | 100 Verified High-Conversion Leads</title>
+  <meta name="description" content="Interactive sales & outreach dashboard featuring 100 verified independent tree surgery & arborist businesses across the United Kingdom with no independent websites.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header" id="app-header">
+      <div class="header-left">
+        <div class="brand-badge">
+          <span class="tree-icon">🌲</span>
+          <span class="uk-flag">🇬🇧</span>
+        </div>
+        <div class="brand-info">
+          <h1>UK Tree Surgeons Lead Intelligence</h1>
+          <p class="subtitle">100 Independent Arborists • 0 Websites • Verified Instagram Operations • Prime Web Design &amp; Lead-Gen Prospects</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="view-toggle" id="view-toggle">
+          <button class="toggle-btn active" id="btn-view-grid" title="Grid Card View">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Cards
+          </button>
+          <button class="toggle-btn" id="btn-view-table" title="Table Spreadsheet View">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            Table
+          </button>
+        </div>
+        <div class="export-group">
+          <a href="leads/uk_tree_surgeons_100_leads.xlsx" download="uk_tree_surgeons_100_leads.xlsx" class="btn btn-secondary" id="btn-export-xlsx" title="Download Excel .xlsx master sheet">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Excel .xlsx
+          </a>
+          <button class="btn btn-secondary" id="btn-export-csv" title="Download CSV file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            CSV
+          </button>
+          <button class="btn btn-primary" id="btn-export-json" title="Download JSON file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            JSON
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Key Metrics Ribbon -->
+    <section class="metrics-ribbon" id="metrics-ribbon">
+      <div class="metric-card">
+        <div class="metric-icon green">🎯</div>
+        <div class="metric-body">
+          <span class="metric-value" id="stat-total-leads">100</span>
+          <span class="metric-label">Qualified Leads</span>
+        </div>
+        <span class="metric-pill pill-green">100% Verified</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon emerald">📞</div>
+        <div class="metric-body">
+          <span class="metric-value" id="stat-phone-leads">48</span>
+          <span class="metric-label">Direct Phone Numbers</span>
+        </div>
+        <span class="metric-pill pill-emerald">07... Mobile Lines</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon amber">🚫</div>
+        <div class="metric-body">
+          <span class="metric-value">100%</span>
+          <span class="metric-label">No Website</span>
+        </div>
+        <span class="metric-pill pill-amber">Huge Opp Size</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon blue">💬</div>
+        <div class="metric-body">
+          <span class="metric-value" id="stat-dm-leads">47</span>
+          <span class="metric-label">Active DM Quote CTAs</span>
+        </div>
+        <span class="metric-pill pill-blue">High Response</span>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon purple">📊</div>
+        <div class="metric-body">
+          <span class="metric-value" id="stat-pipeline-active">0</span>
+          <span class="metric-label">In Pipeline</span>
+        </div>
+        <span class="metric-pill pill-purple" id="stat-contacted-badge">0 Contacted</span>
+      </div>
+    </section>
+
+    <!-- Filter & Search Toolbar -->
+    <section class="toolbar-section" id="toolbar-section">
+      <div class="search-box-wrapper">
+        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="search-input" placeholder="Search by name, handle, city, phone (e.g. 07554), service..." autocomplete="off">
+        <button id="clear-search-btn" class="clear-btn" style="display: none;" title="Clear search">✕</button>
+      </div>
+
+      <div class="filter-controls">
+        <!-- Contact Route Filter -->
+        <div class="filter-group">
+          <label for="filter-contact">Contact Route:</label>
+          <select id="filter-contact" class="custom-select">
+            <option value="all">All Contacts (100)</option>
+            <option value="phone">📞 Phone Numbers (48)</option>
+            <option value="dm">💬 Instagram DM Only (47)</option>
+            <option value="email">✉️ Email / WhatsApp (5)</option>
+          </select>
+        </div>
+
+        <!-- Region Filter -->
+        <div class="filter-group">
+          <label for="filter-region">Region / City:</label>
+          <select id="filter-region" class="custom-select">
+            <option value="all">All UK Regions (100)</option>
+            <option value="London">London &amp; Greater London</option>
+            <option value="Leeds">Leeds &amp; West Yorkshire</option>
+            <option value="Manchester">Manchester, Salford &amp; Bolton</option>
+            <option value="Liverpool">Liverpool &amp; Merseyside</option>
+            <option value="Bristol">Bristol &amp; Bath</option>
+            <option value="Leicester">Leicester &amp; Midlands</option>
+            <option value="Nottingham">Nottingham &amp; Derbyshire</option>
+            <option value="Sheffield">Sheffield &amp; South Yorkshire</option>
+            <option value="Newcastle">Newcastle &amp; Durham</option>
+            <option value="Exeter">Exeter, Devon &amp; Cornwall</option>
+            <option value="Bournemouth">Bournemouth, Poole &amp; Dorset</option>
+            <option value="Southampton">Southampton &amp; Hampshire</option>
+            <option value="Kent">Kent &amp; Canterbury</option>
+            <option value="Essex">Essex, Colchester &amp; Chelmsford</option>
+            <option value="East Anglia">Norwich, Ipswich &amp; Cambridge</option>
+            <option value="Sussex">Brighton, Worthing &amp; Eastbourne</option>
+            <option value="Scotland">Scotland (Glasgow, Edinburgh, Borders)</option>
+            <option value="Wales">Wales (Cardiff, Newport, Swansea)</option>
+            <option value="Northern Ireland">Northern Ireland (Belfast)</option>
+          </select>
+        </div>
+
+        <!-- Service Filter -->
+        <div class="filter-group">
+          <label for="filter-service">Service Offered:</label>
+          <select id="filter-service" class="custom-select">
+            <option value="all">All Arboriculture Services</option>
+            <option value="felling">Tree Felling / Removal</option>
+            <option value="reduction">Crown Reduction / Thinning</option>
+            <option value="pruning">Pruning &amp; Shaping</option>
+            <option value="stump">Stump Grinding</option>
+            <option value="hedge">Hedge Trimming / Cutting</option>
+            <option value="emergency">Emergency / Storm Work</option>
+          </select>
+        </div>
+
+        <!-- Pipeline Filter -->
+        <div class="filter-group">
+          <label for="filter-pipeline">Pipeline Status:</label>
+          <select id="filter-pipeline" class="custom-select">
+            <option value="all">All Pipeline (100)</option>
+            <option value="New">New Lead</option>
+            <option value="Contacted">Contacted</option>
+            <option value="In Talks">In Talks</option>
+            <option value="Won">Won Deal</option>
+            <option value="Archived">Archived</option>
+          </select>
+        </div>
+
+        <!-- Sort By -->
+        <div class="filter-group">
+          <label for="sort-select">Sort By:</label>
+          <select id="sort-select" class="custom-select">
+            <option value="priority">Priority: Phone First</option>
+            <option value="followers-desc">Followers: High to Low</option>
+            <option value="followers-asc">Followers: Low to High</option>
+            <option value="posts-desc">Activity: Most Posts</option>
+            <option value="name-asc">Name: A to Z</option>
+          </select>
+        </div>
+
+        <button id="reset-filters-btn" class="btn btn-outline" title="Reset all filters">
+          Reset
+        </button>
+      </div>
+    </section>
+
+    <!-- Active Filters & Results Summary Banner -->
+    <div class="results-meta-bar">
+      <div class="meta-left">
+        <span class="results-counter">Showing <strong id="visible-count">100</strong> of <strong id="total-count">100</strong> verified tree surgeons</span>
+        <div class="filter-tag-chips" id="active-tag-chips"></div>
+      </div>
+      <div class="meta-right">
+        <span class="hint-text">💡 Click <strong>"Pitch"</strong> on any lead for tailor-made outreach copy</span>
+      </div>
+    </div>
+
+    <!-- Main Content: Cards Container -->
+    <main class="leads-container" id="cards-container">
+      <!-- Dynamic Lead Cards Injected via app.js -->
+    </main>
+
+    <!-- Alternative Content: Table Container (Hidden by default) -->
+    <div class="table-container" id="table-container" style="display: none;">
+      <table class="leads-table" id="leads-table">
+        <thead>
+          <tr>
+            <th class="col-id">#</th>
+            <th class="col-business">Business Name</th>
+            <th class="col-handle">Instagram Handle</th>
+            <th class="col-loc">Location</th>
+            <th class="col-website">Website Status</th>
+            <th class="col-contact">Primary Contact</th>
+            <th class="col-followers">Followers</th>
+            <th class="col-services">Services Offered</th>
+            <th class="col-status">Pipeline Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- Dynamic Table Rows Injected via app.js -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="empty-state" style="display: none;">
+      <div class="empty-icon">🔍</div>
+      <h3>No matching tree surgeons found</h3>
+      <p>Try clearing your search query or selecting a broader location/service filter.</p>
+      <button class="btn btn-primary" id="btn-empty-reset">Clear Filters</button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <span>UK Tree Surgeons Lead Intelligence System &bull; 100 Verified Grounded Records</span>
+      </div>
+      <div class="footer-right">
+        <span>Files: <code>leads/uk_tree_surgeons_100_leads.xlsx</code> &bull; <code>.csv</code> &bull; <code>.json</code></span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Tailored Outreach Pitch Modal / Drawer -->
+  <div class="modal-overlay" id="pitch-modal" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-badge">Outreach Pitch Generator</span>
+          <h2 id="modal-lead-title">Pitch for Altitude Tree Services</h2>
+          <span class="modal-lead-handle" id="modal-lead-handle">@altitudetreeservices</span>
+        </div>
+        <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="lead-snapshot-card">
+          <div class="snapshot-item">
+            <span class="snap-label">Location:</span>
+            <span class="snap-value" id="modal-location">Leeds, England 🇬🇧</span>
+          </div>
+          <div class="snapshot-item">
+            <span class="snap-label">Contact Route:</span>
+            <span class="snap-value highlight" id="modal-contact">Phone: 07554664610</span>
+          </div>
+          <div class="snapshot-item">
+            <span class="snap-label">Audience:</span>
+            <span class="snap-value" id="modal-audience">720 Followers &bull; 55 Posts</span>
+          </div>
+          <div class="snapshot-item">
+            <span class="snap-label">Website Status:</span>
+            <span class="snap-value warning" id="modal-web-status">NO WEBSITE (Instagram Only)</span>
+          </div>
+        </div>
+
+        <div class="pitch-strategy-tabs">
+          <button class="pitch-tab-btn active" data-template="local_seo">Angle 1: Missed Google Traffic</button>
+          <button class="pitch-tab-btn" data-template="quote_tool">Angle 2: Instant Quote Tool</button>
+          <button class="pitch-tab-btn" data-template="emergency">Angle 3: Emergency Storm Callouts</button>
+        </div>
+
+        <div class="pitch-text-container">
+          <label for="pitch-textarea">Tailored Message:</label>
+          <textarea id="pitch-textarea" rows="9" readonly></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="modal-footer-left">
+          <span class="copy-hint" id="copy-hint-text">Click to copy personalized pitch script</span>
+        </div>
+        <div class="modal-footer-right">
+          <button class="btn btn-secondary" id="btn-copy-pitch">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy Pitch
+          </button>
+          <a href="#" target="_blank" class="btn btn-primary" id="btn-open-direct-channel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Send on Instagram
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Load Embedded Leads Data -->
+  <script src="leads_data.js"></script>
+  <!-- Main Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
