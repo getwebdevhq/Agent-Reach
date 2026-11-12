@@ -1,5 +1,5 @@
-import sydneyLeads from "./web/src/data/sydney_dog_groomers_50_leads.json" with { type: "json" };
-import ukLeads from "./web/src/data/uk_tree_surgeons_100_leads.json" with { type: "json" };
+import sydneyLeads from "./web/src/data/sydney_dog_groomers_50_leads.json";
+import ukLeads from "./web/src/data/uk_tree_surgeons_100_leads.json";
 
 function escapeCsv(val) {
   const str = String(val ?? "");
