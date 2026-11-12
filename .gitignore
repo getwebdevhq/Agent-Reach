@@ -1,3 +1,17 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Next.js Build Outputs
+web/.next/
+web/out/
+.next/
+out/
+
+# Cloudflare Wrangler
+.wrangler/
+
+# Python Cache & Envs
 __pycache__/
 *.pyc
 *.pyo
@@ -6,10 +20,13 @@ __pycache__/
 dist/
 build/
 .env
+.env*.local
 .agent-reach/
 *.log
 
-# Claude Code personal permission settings — local only, never commit
-.claude/settings.local.json
-uv.lock
+# Local Scratch & IDE
 scratch/
+.claude/settings.local.json
+.vscode/
+.idea/
+uv.lock
