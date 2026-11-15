@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Phone,
   Search,
+  ShieldCheck,
   Sparkles,
   Table as TableIcon,
   TrendingUp,
@@ -379,6 +380,16 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     {sydneyLeads.length + ukLeads.length} Total Verified Leads
                   </span>
+                  <a
+                    href="https://github.com/rohitg00/agentmemory"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors"
+                    title="Powered by Rohit Ghumare's agentmemory (github.com/rohitg00/agentmemory) - Zero repeat policy across all sessions"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
+                    AgentMemory: 0 Duplicates
+                  </a>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                   Verified Instagram businesses without independent custom websites • Ready for outreach

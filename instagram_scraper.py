@@ -49,6 +49,8 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from agent_reach.lead_memory import lead_memory
+
 console = Console()
 
 # Domain categories for link classification
@@ -347,10 +349,11 @@ class InstagramLeadScraper:
         max_leads: int = 50,
         pages_per_query: int = 3,
     ) -> List[Dict]:
-        """Run the full scraper for all given niches and countries."""
+        """Run the full scraper for all given niches and countries with agentmemory deduplication."""
         all_leads: List[Dict] = []
         processed_users: Set[str] = set()
 
+        mem_stats = lead_memory.get_stats()
         console.print(
             Panel.fit(
                 f"[bold cyan]Instagram Business Lead Scraper[/bold cyan]\n"
@@ -358,7 +361,9 @@ class InstagramLeadScraper:
                 f"(Targeting businesses without custom websites)\n"
                 f"[yellow]Niches:[/yellow] {', '.join(niches)}\n"
                 f"[yellow]Countries/Cities:[/yellow] {', '.join(countries)}\n"
-                f"[yellow]Target Leads:[/yellow] {max_leads} per niche-country combination",
+                f"[yellow]Target Leads:[/yellow] {max_leads} per niche-country combination\n"
+                f"[green]🛡️ AgentMemory Deduplication:[/green] [bold white]ACTIVE[/bold white] "
+                f"({mem_stats['total_memorized_leads']} leads memorized cross-session | 0 repeats allowed)",
                 border_style="cyan",
             )
         )
@@ -372,11 +377,22 @@ class InstagramLeadScraper:
                 found_handles = self.discovery.search_bing(
                     niche=niche, location=country, max_pages=pages_per_query
                 )
-                new_handles = [h for h in found_handles if h not in processed_users]
+                
+                # Check each discovered handle against agentmemory to prevent duplicate leads across sessions
+                new_handles = []
+                for h in found_handles:
+                    if h in processed_users:
+                        continue
+                    is_known, reason, _ = lead_memory.is_lead_known(h)
+                    if is_known:
+                        console.print(f"  [dim yellow]⏩ AgentMemory Duplicate Skipped:[/dim yellow] @{h} ({reason})")
+                        processed_users.add(h)
+                        continue
+                    new_handles.append(h)
 
                 console.print(
-                    f"  Found [bold cyan]{len(found_handles)}[/bold cyan] total handles "
-                    f"([bold cyan]{len(new_handles)}[/bold cyan] new to inspect)"
+                    f"  Found [bold cyan]{len(found_handles)}[/bold cyan] total candidate handles "
+                    f"([bold green]{len(new_handles)}[/bold green] fresh to inspect after AgentMemory filter)"
                 )
 
                 if not new_handles:
@@ -404,6 +420,16 @@ class InstagramLeadScraper:
                         if profile["followers"] < self.min_followers or profile["followers"] > self.max_followers:
                             continue
 
+                        # Secondary deduplication check on extracted phone and business name
+                        extracted_phone = profile.get("phone") or (profile.get("phones", [None])[0] if isinstance(profile.get("phones"), list) and profile.get("phones") else None)
+                        biz_name = profile.get("business_name") or profile.get("full_name")
+                        is_known_contact, contact_reason, _ = lead_memory.is_lead_known(
+                            username, phone=extracted_phone, business_name=biz_name
+                        )
+                        if is_known_contact:
+                            console.print(f"\n  [dim red]⏩ AgentMemory Collision Rejected:[/dim red] @{username} ({contact_reason})")
+                            continue
+
                         # Apply website filtering
                         is_match = False
                         if self.filter_mode == "strictly_no_website":
@@ -418,6 +444,13 @@ class InstagramLeadScraper:
                             profile["niche"] = niche
                             profile["country"] = country
                             all_leads.append(profile)
+
+                            # Record newly verified lead to agentmemory immediately
+                            lead_memory.record_lead(
+                                profile,
+                                source="instagram_scraper",
+                                campaign=f"{niche} - {country}"
+                            )
 
                             # Delay to respect rate limits
                             time.sleep(0.4)
@@ -463,6 +496,18 @@ class InstagramLeadScraper:
 
         console.print(table)
         console.print(f"\n[bold green]✅ Total High-Quality Leads Found: {len(leads)}[/bold green]")
+
+        mem_stats = lead_memory.get_stats()
+        console.print(
+            Panel(
+                f"[bold green]🛡️ AgentMemory Deduplication Engine Status[/bold green]\n"
+                f"• Total Memorized Leads Across All Sessions: [bold white]{mem_stats['total_memorized_leads']}[/bold white]\n"
+                f"• Unique Phone Numbers Tracked: [bold white]{mem_stats['unique_phone_numbers']}[/bold white]\n"
+                f"• Deduplication Policy: [bold cyan]{mem_stats['deduplication_policy']}[/bold cyan]\n"
+                f"• Memory Bank Store: [dim]{mem_stats['persist_store']}[/dim]",
+                border_style="green",
+            )
+        )
 
     def export(self, leads: List[Dict]):
         """Export leads to CSV, Excel, and JSON."""

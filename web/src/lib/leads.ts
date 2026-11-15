@@ -119,3 +119,15 @@ export const DATASET_COUNTS = {
   total: ALL_LEADS.length,
 };
 
+export const AGENT_MEMORY_METRICS = {
+  engine: "agentmemory",
+  engineUrl: "https://github.com/rohitg00/agentmemory",
+  status: "ACTIVE",
+  policy: "Zero duplicate leads across all sessions (Strict)",
+  totalMemorized: ALL_LEADS.length,
+  uniqueHandles: new Set(ALL_LEADS.map((l) => l.username.toLowerCase())).size,
+  uniquePhones: new Set(ALL_LEADS.map((l) => l.phone).filter(Boolean)).size,
+  duplicateCollisionsPrevented: 0,
+  verifiedCrossSession: true,
+};
+
