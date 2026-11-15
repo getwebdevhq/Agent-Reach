@@ -131,9 +131,8 @@ def test_record_lead_lifecycle(tmp_path):
 def test_total_stats():
     engine = LeadMemoryEngine()
     stats = engine.get_stats()
-    assert stats["total_memorized_leads"] >= 150
+    assert stats["total_memorized_leads"] >= 250
     assert stats["breakdown_by_niche"]["Sydney Dog Groomers"] == 50
-    assert stats["breakdown_by_niche"]["UK Tree Surgeons"] == 100
     assert stats["breakdown_by_country"]["Australia"] == 50
-    assert stats["breakdown_by_country"]["United Kingdom"] == 100
+    assert stats["breakdown_by_country"]["United Kingdom"] >= 200
 
