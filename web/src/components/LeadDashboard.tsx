@@ -22,7 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { CampaignId, Lead } from "@/lib/leads";
+import type { BatchFilter, Lead } from "@/lib/leads";
 
 function Instagram({ className }: { className?: string }) {
   return (
@@ -44,7 +44,6 @@ function Instagram({ className }: { className?: string }) {
 }
 
 interface LeadDashboardProps {
-  sydneyLeads: Lead[];
   ukLeads: Lead[];
 }
 
@@ -82,14 +81,11 @@ const WEBSITE_STATUS_BADGE: Record<string, { label: string; classes: string }> =
 };
 
 function buildOutreachMessage(lead: Lead): string {
-  if (lead.campaign === "sydney-dog-groomers") {
-    return `Hi ${lead.businessName} team! 👋 Came across your gorgeous grooms on Instagram (@${lead.username}).\n\nI noticed you don't have a standalone website set up yet and are handling bookings via ${lead.phone ? `phone/SMS (${lead.phone})` : "Instagram DMs"}. Most Sydney groomers tell me they lose hours every week answering booking messages while their hands are full.\n\nI mocked up a clean 1-page website concept for ${lead.businessName} with local ${lead.suburb} Google SEO, breed price estimator, and direct booking intake.\n\nWould you like me to send over a quick 60-second preview?`;
-  }
   return `Hi ${lead.businessName} team! 👋 Saw your recent arboriculture work on Instagram (@${lead.username}).\n\nI noticed you don't currently have an independent website and rely on ${lead.phone ? `direct calls (${lead.phone})` : "Instagram DMs"} for quotes. Homeowners in ${lead.location} searching Google for tree surgery often book the first local firm with a fast quote site.\n\nI put together a quick local-SEO website concept for ${lead.businessName} with an instant photo-quote request form.\n\nOpen to taking a quick look?`;
 }
 
-export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardProps) {
-  const [campaign, setCampaign] = useState<CampaignId>("sydney-dog-groomers");
+export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
+  const [batchFilter, setBatchFilter] = useState<BatchFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [searchQuery, setSearchQuery] = useState("");
   const [contactFilter, setContactFilter] = useState<ContactFilter>("all");
@@ -149,15 +145,25 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
     }
   };
 
-  const activeBaseLeads = useMemo(() => {
-    if (campaign === "sydney-dog-groomers") return sydneyLeads;
-    if (campaign === "uk-tree-surgeons") return ukLeads;
-    return [...sydneyLeads, ...ukLeads];
-  }, [campaign, sydneyLeads, ukLeads]);
+  const batchCounts = useMemo(() => {
+    return {
+      all: ukLeads.length,
+      batch1: ukLeads.filter((l) => l.batch === "Batch 1").length,
+      batch2: ukLeads.filter((l) => l.batch === "Batch 2").length,
+      batch3: ukLeads.filter((l) => l.batch === "Batch 3").length,
+    };
+  }, [ukLeads]);
 
-  // Reset location & status filters when switching campaign
-  const handleCampaignChange = (nextCampaign: CampaignId) => {
-    setCampaign(nextCampaign);
+  const activeBaseLeads = useMemo(() => {
+    if (batchFilter === "batch-1") return ukLeads.filter((l) => l.batch === "Batch 1");
+    if (batchFilter === "batch-2") return ukLeads.filter((l) => l.batch === "Batch 2");
+    if (batchFilter === "batch-3") return ukLeads.filter((l) => l.batch === "Batch 3");
+    return ukLeads;
+  }, [batchFilter, ukLeads]);
+
+  // Reset location & status filters when switching batch
+  const handleBatchChange = (nextBatch: BatchFilter) => {
+    setBatchFilter(nextBatch);
     setLocationFilter("all");
     setStatusFilter("all");
     setSelectedLead(null);
@@ -210,9 +216,6 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
           return a.businessName.localeCompare(b.businessName);
         case "id-asc":
         default:
-          if (a.campaign !== b.campaign) {
-            return a.campaign === "sydney-dog-groomers" ? -1 : 1;
-          }
           return a.id - b.id;
       }
     });
@@ -235,13 +238,15 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
   const structuredPayload = useMemo(() => {
     return {
       meta: {
-        campaign,
+        campaign: "uk-tree-surgeons",
+        batch: batchFilter,
         total_in_dataset: activeBaseLeads.length,
         filtered_count: filteredLeads.length,
-        all_campaigns_total: sydneyLeads.length + ukLeads.length,
+        all_uk_total: ukLeads.length,
         breakdown: {
-          sydney_dog_groomers: sydneyLeads.length,
-          uk_tree_surgeons: ukLeads.length,
+          batch_1: batchCounts.batch1,
+          batch_2: batchCounts.batch2,
+          batch_3: batchCounts.batch3,
         },
         filters: {
           searchQuery: searchQuery || null,
@@ -254,6 +259,7 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
       leads: filteredLeads.map((l) => ({
         uid: l.uid,
         id: l.id,
+        batch: l.batch,
         campaign: l.campaign,
         username: l.username,
         business_name: l.businessName,
@@ -273,10 +279,10 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
       })),
     };
   }, [
-    campaign,
+    batchFilter,
+    batchCounts,
     activeBaseLeads.length,
     filteredLeads,
-    sydneyLeads.length,
     ukLeads.length,
     searchQuery,
     contactFilter,
@@ -293,7 +299,7 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${campaign}_structured_leads.json`;
+    a.download = `uk_tree_surgeons_${batchFilter}_leads.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -356,7 +362,7 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${campaign}_filtered_leads.csv`;
+    a.download = `uk_tree_surgeons_${batchFilter}_leads.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -368,17 +374,17 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3.5">
-              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shadow-sm shrink-0">
+              <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-sm shrink-0">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
-                    Agent-Reach Lead Intelligence
+                    UK Tree Surgeons Lead Intelligence
                   </h1>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {sydneyLeads.length + ukLeads.length} Total Verified Leads
+                    {ukLeads.length} Total Verified UK Leads
                   </span>
                   <a
                     href="https://github.com/rohitg00/agentmemory"
@@ -392,14 +398,14 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
                   </a>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  Verified Instagram businesses without independent custom websites • Ready for outreach
+                  Verified independent UK tree surgeons &amp; arborists without custom websites • Ready for outreach
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <a
-                href={`/api/leads?campaign=${campaign}`}
+                href={`/api/leads?batch=${batchFilter}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
@@ -424,68 +430,88 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
             </div>
           </div>
 
-          {/* Campaign Switcher */}
+          {/* Batch Filter Switcher */}
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 mr-1">
-              Campaign Dataset:
+              UK Tree Surgeons Batches:
             </span>
             <button
-              onClick={() => handleCampaignChange("sydney-dog-groomers")}
+              onClick={() => handleBatchChange("all")}
               className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                campaign === "sydney-dog-groomers"
+                batchFilter === "all"
                   ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <span>🐾 Sydney Dog Groomers</span>
+              <span>🌳 All UK Tree Surgeons</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[11px] ${
-                  campaign === "sydney-dog-groomers"
+                  batchFilter === "all"
                     ? "bg-white/20 text-white"
                     : "bg-white text-slate-700"
                 }`}
               >
-                {sydneyLeads.length}
+                {batchCounts.all}
               </span>
             </button>
 
             <button
-              onClick={() => handleCampaignChange("uk-tree-surgeons")}
+              onClick={() => handleBatchChange("batch-1")}
               className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                campaign === "uk-tree-surgeons"
+                batchFilter === "batch-1"
                   ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <span>🌳 UK Tree Surgeons</span>
+              <span>Batch 1</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[11px] ${
-                  campaign === "uk-tree-surgeons"
+                  batchFilter === "batch-1"
                     ? "bg-white/20 text-white"
                     : "bg-white text-slate-700"
                 }`}
               >
-                {ukLeads.length}
+                {batchCounts.batch1}
               </span>
             </button>
 
             <button
-              onClick={() => handleCampaignChange("all")}
+              onClick={() => handleBatchChange("batch-2")}
               className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                campaign === "all"
+                batchFilter === "batch-2"
                   ? "bg-slate-900 text-white shadow-xs"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
-              <span>🌐 All Qualified Leads</span>
+              <span>Batch 2</span>
               <span
                 className={`px-1.5 py-0.5 rounded-md text-[11px] ${
-                  campaign === "all"
+                  batchFilter === "batch-2"
                     ? "bg-white/20 text-white"
                     : "bg-white text-slate-700"
                 }`}
               >
-                {sydneyLeads.length + ukLeads.length}
+                {batchCounts.batch2}
+              </span>
+            </button>
+
+            <button
+              onClick={() => handleBatchChange("batch-3")}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                batchFilter === "batch-3"
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <span>Batch 3 (New)</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-md text-[11px] ${
+                  batchFilter === "batch-3"
+                    ? "bg-white/20 text-white"
+                    : "bg-white text-slate-700"
+                }`}
+              >
+                {batchCounts.batch3}
               </span>
             </button>
           </div>
@@ -764,11 +790,9 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
                               >
                                 <Instagram className="h-3 w-3" />@{lead.username}
                               </a>
-                              {campaign === "all" && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-                                  {lead.country === "Australia" ? "🇦🇺 Sydney" : "🇬🇧 UK"}
-                                </span>
-                              )}
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                                {lead.batch}
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -966,10 +990,10 @@ export default function LeadDashboard({ sydneyLeads, ukLeads }: LeadDashboardPro
                     Structured Schema &amp; Live JSON Output
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Strongly-typed payload reflecting your active campaign ({filteredLeads.length}{" "}
+                    Strongly-typed payload reflecting your active UK Tree Surgeons batch ({filteredLeads.length}{" "}
                     records) • Also accessible via{" "}
                     <code className="font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                      GET /api/leads?campaign={campaign}
+                      GET /api/leads?batch={batchFilter}
                     </code>
                   </p>
                 </div>

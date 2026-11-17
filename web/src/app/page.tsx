@@ -1,6 +1,6 @@
 import LeadDashboard from "@/components/LeadDashboard";
-import { SYDNEY_LEADS, UK_LEADS } from "@/lib/leads";
+import { UK_LEADS } from "@/lib/leads";
 
 export default function Home() {
-  return <LeadDashboard sydneyLeads={SYDNEY_LEADS} ukLeads={UK_LEADS} />;
+  return <LeadDashboard ukLeads={UK_LEADS} />;
 }

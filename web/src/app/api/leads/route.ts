@@ -6,7 +6,7 @@ export const dynamic = "force-static";
 export async function GET() {
   return NextResponse.json({
     meta: {
-      campaign: "all",
+      campaign: "uk-tree-surgeons",
       count: ALL_LEADS.length,
       totals: DATASET_COUNTS,
       deduplication: AGENT_MEMORY_METRICS,

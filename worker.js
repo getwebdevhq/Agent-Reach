@@ -1,5 +1,4 @@
-import sydneyLeads from "./web/src/data/sydney_dog_groomers_50_leads.json";
-import ukLeads from "./web/src/data/uk_tree_surgeons_100_leads.json";
+import ukLeads from "./web/src/data/uk_tree_surgeons_350_leads.json";
 
 function escapeCsv(val) {
   const str = String(val ?? "");
@@ -15,43 +14,40 @@ export default {
 
     // API Route: /api/leads
     if (url.pathname === "/api/leads") {
-      const campaign = url.searchParams.get("campaign") || "sydney-dog-groomers";
+      const batch = url.searchParams.get("batch") || "all";
       const format = url.searchParams.get("format") || "json";
 
-      let leads = [];
-      if (campaign === "uk-tree-surgeons") {
-        leads = ukLeads;
-      } else if (campaign === "all") {
-        leads = [
-          ...sydneyLeads.map((l) => ({ ...l, campaign: "sydney-dog-groomers" })),
-          ...ukLeads.map((l) => ({ ...l, campaign: "uk-tree-surgeons" })),
-        ];
-      } else {
-        leads = sydneyLeads;
+      let leads = ukLeads;
+      if (batch === "batch-1") {
+        leads = ukLeads.filter((l) => l.batch === "Batch 1" || l.id <= 100);
+      } else if (batch === "batch-2") {
+        leads = ukLeads.filter((l) => l.batch === "Batch 2" || (l.id > 100 && l.id <= 200));
+      } else if (batch === "batch-3") {
+        leads = ukLeads.filter((l) => l.batch === "Batch 3" || l.id > 200);
       }
 
       if (format === "csv") {
         const headers = [
           "id",
+          "batch",
           "username",
-          "business_name",
+          "full_name",
           "location",
           "country",
           "website_status",
           "contact_route",
-          "phone",
+          "phones",
+          "emails",
           "followers",
           "posts",
-          "services",
+          "service_evidence",
           "pitch_angle",
           "profile_url",
         ];
         const rows = [
           headers.join(","),
           ...leads.map((l) =>
-            headers
-              .map((h) => escapeCsv(l[h] ?? l.full_name ?? l.phones ?? l.service_evidence ?? ""))
-              .join(",")
+            headers.map((h) => escapeCsv(l[h] ?? "")).join(",")
           ),
         ];
         return new Response(rows.join("\n"), {
@@ -59,19 +55,28 @@ export default {
           headers: {
             "Content-Type": "text/csv; charset=utf-8",
             "Access-Control-Allow-Origin": "*",
-            "Content-Disposition": `attachment; filename="${campaign}_leads.csv"`,
+            "Content-Disposition": `attachment; filename="uk_tree_surgeons_${batch}_leads.csv"`,
           },
         });
       }
 
       const payload = {
         meta: {
-          campaign,
+          campaign: "uk-tree-surgeons",
+          batch,
           count: leads.length,
           totals: {
-            sydneyDogGroomers: sydneyLeads.length,
             ukTreeSurgeons: ukLeads.length,
-            total: sydneyLeads.length + ukLeads.length,
+            batch1: ukLeads.filter((l) => l.batch === "Batch 1" || l.id <= 100).length,
+            batch2: ukLeads.filter((l) => l.batch === "Batch 2" || (l.id > 100 && l.id <= 200)).length,
+            batch3: ukLeads.filter((l) => l.batch === "Batch 3" || l.id > 200).length,
+            total: ukLeads.length,
+          },
+          deduplication: {
+            engine: "agentmemory",
+            engineUrl: "https://github.com/rohitg00/agentmemory",
+            status: "ACTIVE",
+            policy: "Zero duplicate leads across all sessions (Strict)",
           },
           generatedAt: new Date().toISOString(),
         },

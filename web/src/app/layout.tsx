@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agent-Reach | Lead Intelligence & Structured Output",
+  title: "Agent-Reach | UK Tree Surgeons Lead Intelligence",
   description:
-    "Interactive Next.js & Tailwind dashboard for 150 verified Instagram business leads without websites (50 Sydney Dog Groomers + 100 UK Tree Surgeons).",
+    "Interactive Next.js & Tailwind dashboard for 350 verified UK Tree Surgeons Instagram leads without independent websites, protected by AgentMemory zero-duplicate enforcement.",
 };
 
 export default function RootLayout({

@@ -1,7 +1,7 @@
 {
   "name": "agent-reach-leads",
   "version": "1.0.0",
-  "description": "Lead Intelligence & Outreach Platform for 150 Verified Instagram Businesses without Websites (Sydney Dog Groomers & UK Tree Surgeons)",
+  "description": "Lead Intelligence & Outreach Platform for Verified UK Tree Surgeons Instagram Businesses without Websites (AgentMemory Zero-Duplicate Engine)",
   "workspaces": [
     "web"
   ],
@@ -22,8 +22,8 @@
     "tailwindcss",
     "lead-generation",
     "instagram-leads",
-    "sydney-dog-groomers",
-    "uk-tree-surgeons"
+    "uk-tree-surgeons",
+    "agentmemory"
   ],
   "author": "getwebdevhq",
   "license": "MIT"

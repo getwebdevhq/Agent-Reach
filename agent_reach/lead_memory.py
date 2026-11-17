@@ -140,7 +140,8 @@ class LeadMemoryEngine:
                         lead["handle"] = clean_h
                         self.handles_index[clean_h] = lead
                         # Index phone
-                        phone = lead.get("phone") or (lead.get("phones", [None])[0] if isinstance(lead.get("phones"), list) and lead.get("phones") else None)
+                        raw_p = lead.get("phone") or lead.get("phones")
+                        phone = raw_p[0] if isinstance(raw_p, list) and raw_p else (raw_p.split(",")[0].strip() if isinstance(raw_p, str) and raw_p.strip() else None)
                         if phone:
                             clean_p = normalize_phone(phone)
                             if clean_p:
@@ -196,7 +197,8 @@ class LeadMemoryEngine:
                         # Update if missing or if only placeholder from mem:memories
                         if clean_h not in self.handles_index or self.handles_index[clean_h].get("source") == "mem:memories":
                             self.handles_index[clean_h] = item
-                        phone = item.get("phone") or (item.get("phones", [None])[0] if isinstance(item.get("phones"), list) and item.get("phones") else None)
+                        raw_p = item.get("phone") or item.get("phones")
+                        phone = raw_p[0] if isinstance(raw_p, list) and raw_p else (raw_p.split(",")[0].strip() if isinstance(raw_p, str) and raw_p.strip() else None)
                         if phone:
                             clean_p = normalize_phone(phone)
                             if clean_p:
@@ -269,16 +271,20 @@ class LeadMemoryEngine:
 
         # Extract normalized attributes
         phone = lead.get("phone")
-        if not phone and isinstance(lead.get("phones"), list) and lead.get("phones"):
-            phone = lead["phones"][0]
+        if not phone:
+            raw_phones = lead.get("phones")
+            if isinstance(raw_phones, list) and raw_phones:
+                phone = raw_phones[0]
+            elif isinstance(raw_phones, str) and raw_phones.strip():
+                phone = raw_phones.split(",")[0].strip()
         clean_p = normalize_phone(phone)
 
         business_name = lead.get("business_name") or lead.get("full_name") or clean_h
         clean_n = normalize_name(business_name)
 
-        niche = lead.get("niche") or ("Dog Grooming" if "groom" in str(lead).lower() else "Tree Surgeon")
+        niche = lead.get("niche") or "UK Tree Surgeons"
         location = lead.get("location") or lead.get("suburb") or ""
-        country = lead.get("country") or ("Australia" if "sydney" in str(lead).lower() else "United Kingdom")
+        country = lead.get("country") or "United Kingdom"
         website_status = lead.get("website_status") or "NO_WEBSITE"
         profile_url = lead.get("profile_url") or f"https://www.instagram.com/{clean_h}/"
 
@@ -421,7 +427,7 @@ class LeadMemoryEngine:
                 "title": title[:80],
                 "content": content,
                 "concepts": concepts,
-                "files": ["leads/sydney_dog_groomers_50_leads.json", "leads/uk_tree_surgeons_100_leads.json"],
+                "files": ["leads/uk_tree_surgeons_350_leads.json"],
                 "createdAt": now_iso,
                 "updatedAt": now_iso,
                 "strength": 9,
@@ -492,37 +498,107 @@ class LeadMemoryEngine:
             "deduplication_policy": "Zero duplicate leads across all sessions (Strict)",
         }
 
+    def purge_pet_and_dog_leads(self) -> Dict[str, int]:
+        """Remove all doggy daycare, pet boarding, and dog grooming leads from memory & registry."""
+        pet_keywords = (
+            "dog groom", "doggy daycare", "pet boarding", "sydney dog",
+            "doggy", "pooch", "puppy", "groomer", "grooming", "daycare", "boarding", "australia"
+        )
+
+        def is_pet_lead(obj: Any) -> bool:
+            txt = json.dumps(obj, ensure_ascii=False).lower()
+            if "tree" in txt or "arbor" in txt or "stump" in txt:
+                return False
+            return any(kw in txt for kw in pet_keywords)
+
+        removed_store = 0
+        removed_mems = 0
+        removed_reg = 0
+
+        # 1. Purge from agentmemory standalone store
+        if self.persist_path and Path(self.persist_path).exists():
+            try:
+                p = Path(self.persist_path)
+                with open(p, "r", encoding="utf-8") as f:
+                    store = json.load(f)
+
+                if "agentreach:leads" in store:
+                    new_leads = {}
+                    for k, v in store["agentreach:leads"].items():
+                        if is_pet_lead(v):
+                            removed_store += 1
+                        else:
+                            new_leads[k] = v
+                    store["agentreach:leads"] = new_leads
+
+                if "mem:memories" in store:
+                    new_mems = {}
+                    for k, v in store["mem:memories"].items():
+                        if (k.startswith("mem_lead_") or v.get("project") == "agent-reach") and is_pet_lead(v):
+                            removed_mems += 1
+                        else:
+                            new_mems[k] = v
+                    store["mem:memories"] = new_mems
+
+                tmp_path = p.with_suffix(".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(store, f, indent=2, ensure_ascii=False)
+                tmp_path.replace(p)
+            except Exception as e:
+                sys.stderr.write(f"[LeadMemoryEngine] Warning purging persist store: {e}\n")
+
+        # 2. Purge from repository registry
+        if self.repo_registry_path and self.repo_registry_path.exists():
+            try:
+                with open(self.repo_registry_path, "r", encoding="utf-8") as f:
+                    reg = json.load(f)
+                orig = reg.get("leads", [])
+                kept = [l for l in orig if not is_pet_lead(l)]
+                removed_reg = len(orig) - len(kept)
+                reg["leads"] = kept
+                reg["total_leads"] = len(kept)
+                reg["last_synced_at"] = datetime.now(timezone.utc).isoformat()
+
+                tmp_path = self.repo_registry_path.with_suffix(".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(reg, f, indent=2, ensure_ascii=False)
+                tmp_path.replace(self.repo_registry_path)
+            except Exception as e:
+                sys.stderr.write(f"[LeadMemoryEngine] Warning purging repo registry: {e}\n")
+
+        self.load()
+        return {
+            "removed_from_agentmemory_leads": removed_store,
+            "removed_from_agentmemory_memories": removed_mems,
+            "removed_from_repo_registry": removed_reg,
+            "remaining_memorized_leads": len(self.handles_index),
+        }
+
     def sync_all_existing_leads(self) -> Dict[str, Any]:
-        """Scan all leads in leads/ directory and sync into agentmemory."""
+        """Scan all UK tree surgeon leads in leads/ directory and sync into agentmemory."""
         leads_dir = Path(__file__).resolve().parent.parent / "leads"
-        sydney_file = leads_dir / "sydney_dog_groomers_50_leads.json"
-        uk_file = leads_dir / "uk_tree_surgeons_100_leads.json"
+        candidate_files = [
+            leads_dir / "uk_tree_surgeons_350_leads.json",
+            leads_dir / "uk_tree_surgeons_200_leads.json",
+            leads_dir / "uk_tree_surgeons_100_leads.json",
+            leads_dir / "uk_tree_surgeons_100_more_leads.json",
+            leads_dir / "uk_tree_surgeons_150_more_leads.json",
+        ]
 
-        synced_sydney = 0
         synced_uk = 0
-
-        if sydney_file.exists():
-            with open(sydney_file, "r", encoding="utf-8") as f:
-                sydney_leads = json.load(f)
-            for l in sydney_leads:
-                l["niche"] = "Sydney Dog Groomers"
-                l["country"] = "Australia"
-                if self.record_lead(l, source="sydney_dataset", campaign="Sydney Dog Groomers"):
-                    synced_sydney += 1
-
-        if uk_file.exists():
-            with open(uk_file, "r", encoding="utf-8") as f:
-                uk_leads = json.load(f)
-            for l in uk_leads:
-                l["niche"] = "UK Tree Surgeons"
-                l["country"] = "United Kingdom"
-                if self.record_lead(l, source="uk_dataset", campaign="UK Tree Surgeons"):
-                    synced_uk += 1
+        for uk_file in candidate_files:
+            if uk_file.exists():
+                with open(uk_file, "r", encoding="utf-8") as f:
+                    uk_leads = json.load(f)
+                for l in uk_leads:
+                    l["niche"] = "UK Tree Surgeons"
+                    l["country"] = "United Kingdom"
+                    if self.record_lead(l, source=uk_file.stem, campaign="UK Tree Surgeons"):
+                        synced_uk += 1
 
         return {
-            "synced_sydney": synced_sydney,
             "synced_uk": synced_uk,
-            "total_synced": synced_sydney + synced_uk,
+            "total_synced": synced_uk,
             "current_total": len(self.handles_index),
         }
 
