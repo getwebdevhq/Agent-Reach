@@ -2,6 +2,13 @@ import ukRaw from "@/data/uk_tree_surgeons_350_leads.json";
 
 export type BatchFilter = "all" | "batch-1" | "batch-2" | "batch-3";
 export type WebsiteStatus = "NO_WEBSITE" | "WHATSAPP_ONLY" | "LINK_AGGREGATOR" | "BOOKING_ONLY";
+export type BucketType = "inbox" | "sent" | "invalid";
+
+export interface LeadBucketRecord {
+  bucket: BucketType;
+  replied: boolean;
+  updatedAt: string;
+}
 
 export interface Lead {
   uid: string;
