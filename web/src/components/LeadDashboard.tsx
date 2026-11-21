@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import {
-  Archive,
   Ban,
   Check,
   CheckCircle2,
@@ -24,6 +23,7 @@ import {
   Search,
   Send,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Table as TableIcon,
   TrendingUp,
@@ -92,11 +92,11 @@ function buildOutreachMessage(lead: Lead): string {
 }
 
 export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
-  // Main Navigation & Bucket state
+  // Navigation & Bucket State
   const [activeBucket, setActiveBucket] = useState<BucketType>("inbox");
   const [sentSubFilter, setSentSubFilter] = useState<SentSubFilter>("all");
   const [batchFilter, setBatchFilter] = useState<BatchFilter>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
 
   // Filtering & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,9 +105,10 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortOption>("id-asc");
 
-  // Modals & Drawers
+  // Modals & Sheets
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showDatabaseModal, setShowDatabaseModal] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Cross-tab reactive storage for Triage Buckets & Replied states
@@ -157,7 +158,6 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
     }
   };
 
-  // Actions
   const handleMarkSent = (uid: string) => {
     saveTriageRecord(uid, { bucket: "sent", replied: false });
   };
@@ -177,7 +177,7 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
   };
 
   const handleResetTriage = () => {
-    if (window.confirm("Are you sure you want to restore all leads back to the Main Feed?")) {
+    if (window.confirm("Restore all triaged leads back to the Main Feed?")) {
       try {
         window.localStorage.removeItem(TRIAGE_STORAGE_KEY);
         window.dispatchEvent(new Event("lead-triage-storage-update"));
@@ -199,7 +199,6 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
     }
   };
 
-  // Batch breakdown of raw leads
   const batchCounts = useMemo(() => {
     return {
       all: ukLeads.length,
@@ -223,7 +222,7 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
     setSelectedLead(null);
   };
 
-  // Live bucket counts across activeBaseLeads
+  // Live bucket counts across current batch
   const bucketCounts = useMemo(() => {
     let inboxCount = 0;
     let sentCount = 0;
@@ -260,7 +259,7 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
     return locs.sort((a, b) => a.localeCompare(b));
   }, [activeBaseLeads]);
 
-  // Main filtered leads respecting the selected Bucket
+  // Main filtered leads respecting the active bucket
   const filteredLeads = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -270,7 +269,7 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
 
       // 1. Bucket segregation
       if (activeBucket === "inbox") {
-        if (bucket !== "inbox") return false; // disappears from main feed!
+        if (bucket !== "inbox") return false; // disappears from Main Feed!
       } else if (activeBucket === "sent") {
         if (bucket !== "sent") return false;
         if (sentSubFilter === "replied" && !record?.replied) return false;
@@ -363,18 +362,6 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
         filtered_count: filteredLeads.length,
         total_in_dataset: activeBaseLeads.length,
         all_uk_total: ukLeads.length,
-        breakdown: {
-          batch_1: batchCounts.batch1,
-          batch_2: batchCounts.batch2,
-          batch_3: batchCounts.batch3,
-        },
-        filters: {
-          searchQuery: searchQuery || null,
-          contactFilter,
-          statusFilter,
-          locationFilter,
-          sortBy,
-        },
       },
       leads: filteredLeads.map((l) => {
         const triage = triageMap[l.uid] || { bucket: "inbox", replied: false };
@@ -410,12 +397,6 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
     filteredLeads,
     activeBaseLeads.length,
     ukLeads.length,
-    batchCounts,
-    searchQuery,
-    contactFilter,
-    statusFilter,
-    locationFilter,
-    sortBy,
     triageMap,
   ]);
 
@@ -497,13 +478,8 @@ export default function LeadDashboard({ ukLeads }: LeadDashboardProps) {
     URL.revokeObjectURL(url);
   };
 
-  // Generate SQL for Neon Postgres if user wants to sync
   const neonSqlMigration = useMemo(() => {
-    return `-- ====================================================================
--- Neon Lakebase Postgres Schema & Lead Triage Sync
--- Run this in your Neon SQL Editor or via psql $DATABASE_URL
--- ====================================================================
-
+    return `-- Neon Lakebase Postgres Lead Triage Schema
 CREATE TABLE IF NOT EXISTS lead_triage (
   uid TEXT PRIMARY KEY,
   id INT NOT NULL,
@@ -516,164 +492,126 @@ CREATE TABLE IF NOT EXISTS lead_triage (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index for instant bucket queries
 CREATE INDEX IF NOT EXISTS idx_lead_triage_bucket ON lead_triage (bucket);
 CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, replied);
 `;
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Sparkles className="h-5 w-5" />
+    <div className="min-h-[100dvh] flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-500 selection:text-white">
+      {/* Top Header - Mobile Native & Desktop Translucent Glass */}
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl safe-top transition-colors">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center justify-between gap-3">
+            {/* Brand Title */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white flex items-center justify-center shadow-xs shrink-0">
+                <Sparkles className="h-4.5 w-4.5" />
               </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-lg font-bold tracking-tight text-slate-900">
-                    UK Tree Surgeons Outreach Portal
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
+                    Agent-Reach
                   </h1>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {ukLeads.length} Verified UK Leads
+                    {ukLeads.length} UK Leads
                   </span>
-                  <button
-                    onClick={() => setShowDatabaseModal(true)}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
-                    title="View connected databases (Neon, Supabase, AgentMemory, SQLite)"
-                  >
-                    <Database className="h-3.5 w-3.5 text-sky-600" />
-                    Databases Connected
-                  </button>
-                  <a
-                    href="https://github.com/rohitg00/agentmemory"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors"
-                    title="Rohit Ghumare's agentmemory (0 duplicates across sessions)"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
-                    AgentMemory: 0 Duplicates
-                  </a>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Triage leads into Sent &amp; Invalid buckets • Live response tracking • Cloudflare Workers Edge
+                <p className="text-[11px] text-slate-500 truncate hidden sm:block">
+                  Verified UK Tree Surgeons • No Website Outreach CRM
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <a
-                href={`/api/leads?batch=${batchFilter}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                <Code2 className="h-3.5 w-3.5 text-indigo-600" />
-                Live API
-              </a>
+            {/* Quick Actions & Header Buttons */}
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={downloadJson}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => setShowDatabaseModal(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 active:scale-[0.97] transition-all cursor-pointer"
+                title="View database connections (Neon, Supabase, AgentMemory)"
               >
-                <Download className="h-3.5 w-3.5 text-slate-500" />
-                Export JSON
+                <Database className="h-3.5 w-3.5 text-sky-600" />
+                <span className="hidden sm:inline">Databases</span>
               </button>
+
+              <button
+                onClick={() => setShowMobileFilters(true)}
+                className="sm:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 active:scale-[0.97] transition-all cursor-pointer"
+                aria-label="Open search & filters"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span>Filter</span>
+              </button>
+
               <button
                 onClick={downloadCsv}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs transition-colors cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.97] shadow-xs transition-all cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5" />
-                Export {activeBucket === "inbox" ? "Main Feed" : activeBucket === "sent" ? "Sent" : "Invalid"} CSV ({filteredLeads.length})
+                <span>Export CSV ({filteredLeads.length})</span>
               </button>
             </div>
           </div>
 
-          {/* Primary Bucket Navigation Tabs */}
-          <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl">
-              {/* Inbox / Main Feed Tab */}
+          {/* Desktop & Tablet Segmented Control Tabs */}
+          <div className="mt-3 pt-2.5 border-t border-slate-100 hidden sm:flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl">
               <button
                 onClick={() => {
                   setActiveBucket("inbox");
                   setSelectedLead(null);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-[0.97] cursor-pointer ${
                   activeBucket === "inbox"
                     ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <Inbox className="h-4 w-4 text-indigo-600" />
+                <Inbox className="h-3.5 w-3.5 text-indigo-600" />
                 <span>📥 Main Feed</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                    activeBucket === "inbox"
-                      ? "bg-indigo-100 text-indigo-800"
-                      : "bg-slate-200 text-slate-700"
-                  }`}
-                >
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 tabular-nums">
                   {bucketCounts.inbox}
                 </span>
               </button>
 
-              {/* Sent Bucket Tab */}
               <button
                 onClick={() => {
                   setActiveBucket("sent");
                   setSelectedLead(null);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-[0.97] cursor-pointer ${
                   activeBucket === "sent"
                     ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <Send className="h-4 w-4 text-emerald-600" />
+                <Send className="h-3.5 w-3.5 text-emerald-600" />
                 <span>📤 Sent Bucket</span>
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                      activeBucket === "sent"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-slate-200 text-slate-700"
-                    }`}
-                  >
-                    {bucketCounts.sent}
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 tabular-nums">
+                  {bucketCounts.sent}
+                </span>
+                {bucketCounts.replied > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-600 text-white tabular-nums">
+                    {bucketCounts.replied} replied
                   </span>
-                  {bucketCounts.replied > 0 && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-green-500 text-white">
-                      {bucketCounts.replied} replied
-                    </span>
-                  )}
-                </div>
+                )}
               </button>
 
-              {/* Invalid Bucket Tab */}
               <button
                 onClick={() => {
                   setActiveBucket("invalid");
                   setSelectedLead(null);
                 }}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-[0.97] cursor-pointer ${
                   activeBucket === "invalid"
                     ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                <Ban className="h-4 w-4 text-rose-500" />
+                <Ban className="h-3.5 w-3.5 text-rose-500" />
                 <span>🚫 Invalid Bucket</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                    activeBucket === "invalid"
-                      ? "bg-rose-100 text-rose-800"
-                      : "bg-slate-200 text-slate-700"
-                  }`}
-                >
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 tabular-nums">
                   {bucketCounts.invalid}
                 </span>
               </button>
@@ -682,11 +620,11 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
             {/* Batch Switcher */}
             <div className="flex items-center gap-1 text-xs">
               <span className="font-semibold text-slate-400 uppercase tracking-wider text-[10px] mr-1">
-                Batches:
+                Batch:
               </span>
               <button
                 onClick={() => handleBatchChange("all")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all tabular-nums ${
                   batchFilter === "all"
                     ? "bg-slate-900 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -696,7 +634,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               </button>
               <button
                 onClick={() => handleBatchChange("batch-1")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all tabular-nums ${
                   batchFilter === "batch-1"
                     ? "bg-slate-900 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -706,7 +644,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               </button>
               <button
                 onClick={() => handleBatchChange("batch-2")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all tabular-nums ${
                   batchFilter === "batch-2"
                     ? "bg-slate-900 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -716,7 +654,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               </button>
               <button
                 onClick={() => handleBatchChange("batch-3")}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all tabular-nums ${
                   batchFilter === "batch-3"
                     ? "bg-slate-900 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -729,9 +667,10 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-        {/* Bucket Context Banner & Quick Sub-filters */}
-        <section className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Main Container - Extra bottom padding for Mobile Native Dock */}
+      <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 pb-28 sm:pb-12">
+        {/* Bucket Status Header Banner */}
+        <section className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
               className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -751,38 +690,43 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               )}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                {activeBucket === "inbox" && "📥 Main Lead Feed — Ready for Pitching"}
-                {activeBucket === "sent" && "📤 Sent Bucket — Outreached Leads"}
-                {activeBucket === "invalid" && "🚫 Invalid Bucket — Disqualified Records"}
-              </h2>
-              <p className="text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                  {activeBucket === "inbox" && "Main Feed"}
+                  {activeBucket === "sent" && "Sent Bucket"}
+                  {activeBucket === "invalid" && "Invalid Disqualified Leads"}
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 tabular-nums">
+                  {filteredLeads.length} visible
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
                 {activeBucket === "inbox" &&
-                  "Click 'Sent' to log outreach or 'Invalid' to disqualify. Items immediately leave the Main Feed."}
+                  "Press 'Sent' to log outreach or 'Invalid' to disqualify. Items immediately leave this feed."}
                 {activeBucket === "sent" &&
-                  "Track replies by toggling 'Replied' or 'Awaiting Reply'. You can also restore any lead to the Main Feed."}
+                  "Tap 'Awaiting Reply' to mark as 'Replied'. Restore any lead anytime."}
                 {activeBucket === "invalid" &&
-                  "Leads disqualified due to wrong contacts or existing custom sites. Click 'Restore' to return to Feed."}
+                  "Disqualified leads. Tap 'Restore' anytime to put them back in the Main Feed."}
               </p>
             </div>
           </div>
 
-          {/* Conditional Sub-filters for Sent Bucket */}
+          {/* Sent Bucket Sub-Filter Pills */}
           {activeBucket === "sent" && (
-            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 self-start md:self-auto">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 self-start sm:self-auto overflow-x-auto max-w-full">
               <button
                 onClick={() => setSentSubFilter("all")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all whitespace-nowrap tabular-nums ${
                   sentSubFilter === "all"
                     ? "bg-white text-slate-900 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                All Sent ({bucketCounts.sent})
+                All ({bucketCounts.sent})
               </button>
               <button
                 onClick={() => setSentSubFilter("replied")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all whitespace-nowrap tabular-nums ${
                   sentSubFilter === "replied"
                     ? "bg-emerald-600 text-white shadow-2xs"
                     : "text-slate-600 hover:text-emerald-700"
@@ -792,7 +736,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               </button>
               <button
                 onClick={() => setSentSubFilter("awaiting")}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer active:scale-[0.97] transition-all whitespace-nowrap tabular-nums ${
                   sentSubFilter === "awaiting"
                     ? "bg-amber-600 text-white shadow-2xs"
                     : "text-slate-600 hover:text-amber-700"
@@ -803,122 +747,126 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
             </div>
           )}
 
-          {/* Reset Action */}
+          {/* Reset Triage */}
           {(bucketCounts.sent > 0 || bucketCounts.invalid > 0) && (
             <button
               onClick={handleResetTriage}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-rose-600 transition-colors cursor-pointer self-start md:self-auto"
-              title="Reset all triage actions back to Main Feed"
+              className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 active:scale-[0.97] transition-colors cursor-pointer self-start sm:self-auto"
+              title="Reset triage actions back to feed"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset Triage
+              <RotateCcw className="h-3 w-3" />
+              Reset Feed
             </button>
           )}
         </section>
 
-        {/* Live Metrics Strip */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Visible in View
+        {/* Live Metrics Grid - Mobile Friendly 2x2 & 4x1 */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wider">
+                Matching Leads
               </span>
-              <div className="h-7 w-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Users className="h-3.5 w-3.5" />
-              </div>
+              <Users className="h-4 w-4 text-indigo-600" />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{metrics.total}</span>
-              <span className="text-xs text-slate-500">
-                of {activeBaseLeads.length} in {batchFilter}
+            <div className="mt-1.5 flex items-baseline gap-1.5">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
+                {metrics.total}
+              </span>
+              <span className="text-[11px] text-slate-500 tabular-nums">
+                of {activeBaseLeads.length}
               </span>
             </div>
-            <div className="mt-2 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 inline-flex items-center gap-1 px-2 py-0.5 rounded-full">
+            <div className="mt-2 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md">
               <Globe className="h-3 w-3" />
-              100% No Website
+              No Website
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Direct Phone / Call
+          <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wider">
+                Phone Direct
               </span>
-              <div className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Phone className="h-3.5 w-3.5" />
-              </div>
+              <Phone className="h-4 w-4 text-emerald-600" />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{metrics.withPhone}</span>
-              <span className="text-xs text-slate-500">
+            <div className="mt-1.5 flex items-baseline gap-1.5">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
+                {metrics.withPhone}
+              </span>
+              <span className="text-[11px] text-slate-500 tabular-nums">
                 ({metrics.total > 0 ? Math.round((metrics.withPhone / metrics.total) * 100) : 0}%)
               </span>
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">
-              Verified phone / WhatsApp in bio
+            <p className="mt-2 text-[10px] text-slate-500 truncate">
+              Verified call/WhatsApp ready
             </p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Triage Progress
+          <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wider">
+                Triage Done
               </span>
-              <div className="h-7 w-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
-                <TrendingUp className="h-3.5 w-3.5" />
-              </div>
+              <TrendingUp className="h-4 w-4 text-violet-600" />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">
-                {Math.round(((bucketCounts.sent + bucketCounts.invalid) / (bucketCounts.total || 1)) * 100)}%
+            <div className="mt-1.5 flex items-baseline gap-1.5">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
+                {Math.round(
+                  ((bucketCounts.sent + bucketCounts.invalid) / (bucketCounts.total || 1)) * 100
+                )}
+                %
               </span>
-              <span className="text-xs text-slate-500">
-                {bucketCounts.sent + bucketCounts.invalid} of {bucketCounts.total} reviewed
+              <span className="text-[11px] text-slate-500 tabular-nums">
+                {bucketCounts.sent + bucketCounts.invalid}/{bucketCounts.total}
               </span>
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[10px] text-slate-500 truncate">
               {bucketCounts.sent} sent • {bucketCounts.invalid} invalid
             </p>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Reply Conversion
+          <div className="bg-white rounded-xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wider">
+                Replies
               </span>
-              <div className="h-7 w-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              </div>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-2xl font-bold text-slate-900">{bucketCounts.replied}</span>
-              <span className="text-xs text-slate-500">
-                ({bucketCounts.sent > 0 ? Math.round((bucketCounts.replied / bucketCounts.sent) * 100) : 0}% of sent)
+            <div className="mt-1.5 flex items-baseline gap-1.5">
+              <span className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums">
+                {bucketCounts.replied}
+              </span>
+              <span className="text-[11px] text-slate-500 tabular-nums">
+                ({bucketCounts.sent > 0 ? Math.round((bucketCounts.replied / bucketCounts.sent) * 100) : 0}%)
               </span>
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">
-              {bucketCounts.awaiting} waiting for response
+            <p className="mt-2 text-[10px] text-slate-500 truncate">
+              {bucketCounts.awaiting} waiting for reply
             </p>
           </div>
         </section>
 
-        {/* Controls, Filters & View Switcher */}
-        <section className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            {/* Search */}
+        {/* Desktop Controls & Search Bar */}
+        <section className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-2xs space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Search Input (16px font size to prevent iOS zoom) */}
             <div className="relative flex-1 max-w-xl">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search @handle, business name, suburb, phone, or services..."
-                className="w-full pl-10 pr-9 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                placeholder="Search @handle, company, suburb, phone, services..."
+                enterKeyHint="search"
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="w-full pl-10 pr-9 py-2 text-[16px] sm:text-sm rounded-xl border border-slate-200 bg-slate-50/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 active:scale-95 cursor-pointer"
                   aria-label="Clear search"
                 >
                   <X className="h-4 w-4" />
@@ -926,11 +874,11 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               )}
             </div>
 
-            {/* View Switcher */}
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-slate-100 self-start lg:self-auto">
+            {/* View Switcher (Desktop) */}
+            <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl bg-slate-100">
               <button
                 onClick={() => setViewMode("table")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] cursor-pointer ${
                   viewMode === "table"
                     ? "bg-white text-slate-900 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
@@ -941,7 +889,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               </button>
               <button
                 onClick={() => setViewMode("cards")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] cursor-pointer ${
                   viewMode === "cards"
                     ? "bg-white text-slate-900 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
@@ -952,42 +900,42 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
               </button>
               <button
                 onClick={() => setViewMode("json")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-[0.97] cursor-pointer ${
                   viewMode === "json"
                     ? "bg-white text-indigo-700 shadow-2xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <Code2 className="h-3.5 w-3.5" />
-                Structured JSON
+                JSON
               </button>
             </div>
           </div>
 
-          {/* Filter Dropdowns */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100">
-            <div className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 mr-1">
+          {/* Desktop Filter Selects */}
+          <div className="hidden sm:flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 mr-1">
               <Filter className="h-3.5 w-3.5" />
-              Filters:
-            </div>
+              Filter:
+            </span>
 
             <select
               value={contactFilter}
               onChange={(e) => setContactFilter(e.target.value as ContactFilter)}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
               <option value="all">All Contact Routes</option>
-              <option value="phone">Has Phone / WhatsApp</option>
-              <option value="email">Has Email Address</option>
+              <option value="phone">Has Direct Phone</option>
+              <option value="email">Has Email</option>
               <option value="dm">Instagram DM Only</option>
             </select>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
-              <option value="all">All Website Statuses</option>
+              <option value="all">All Web Statuses</option>
               <option value="NO_WEBSITE">No Website</option>
               <option value="WHATSAPP_ONLY">WhatsApp Only</option>
             </select>
@@ -995,9 +943,9 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 max-w-[220px] cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 max-w-[200px] cursor-pointer"
             >
-              <option value="all">All Locations ({uniqueLocations.length})</option>
+              <option value="all">All Regions ({uniqueLocations.length})</option>
               {uniqueLocations.map((loc) => (
                 <option key={loc} value={loc}>
                   {loc}
@@ -1008,50 +956,51 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 ml-auto cursor-pointer"
+              className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:border-indigo-500 ml-auto cursor-pointer"
             >
-              <option value="id-asc">Sort: Default Order (#)</option>
-              <option value="followers-desc">Sort: Followers (High → Low)</option>
-              <option value="followers-asc">Sort: Followers (Low → High)</option>
-              <option value="posts-desc">Sort: Most Active (Posts)</option>
-              <option value="name-asc">Sort: Business Name (A–Z)</option>
+              <option value="id-asc">Sort: Default (#)</option>
+              <option value="followers-desc">Followers (High → Low)</option>
+              <option value="followers-asc">Followers (Low → High)</option>
+              <option value="posts-desc">Activity (Posts)</option>
+              <option value="name-asc">Business Name (A–Z)</option>
             </select>
           </div>
         </section>
 
-        {/* Main Feed / Bucket Views */}
+        {/* Content Views: Empty / Table / Cards / JSON */}
         {filteredLeads.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-2xs">
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center shadow-xs">
             <div className="h-12 w-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
               {activeBucket === "inbox" ? (
-                <Inbox className="h-6 w-6" />
+                <Inbox className="h-6 w-6 text-indigo-600" />
               ) : activeBucket === "sent" ? (
-                <Send className="h-6 w-6" />
+                <Send className="h-6 w-6 text-emerald-600" />
               ) : (
-                <Ban className="h-6 w-6" />
+                <Ban className="h-6 w-6 text-rose-500" />
               )}
             </div>
-            <p className="text-sm font-bold text-slate-800">
+            <h3 className="text-base font-bold text-slate-900 tracking-tight">
               {activeBucket === "inbox" && "All leads in this batch have been triaged!"}
-              {activeBucket === "sent" && "No leads in Sent bucket matching your filters."}
-              {activeBucket === "invalid" && "No leads currently marked as invalid."}
-            </p>
-            <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+              {activeBucket === "sent" && "No leads found in Sent bucket."}
+              {activeBucket === "invalid" && "No leads marked invalid."}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
               {activeBucket === "inbox"
-                ? "You have moved them to the Sent or Invalid buckets. Switch to 'Sent Bucket' to track replies or review disqualified leads in 'Invalid Bucket'."
-                : "Try resetting your search query or contact/location filters."}
+                ? "Every lead is safely saved in either Sent or Invalid. Switch tabs below to track outreach and replies."
+                : "Try clearing your search query or adjusting your filters."}
             </p>
             {activeBucket === "inbox" && (
               <button
                 onClick={() => setActiveBucket("sent")}
-                className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer"
+                className="mt-4 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.97] transition-all cursor-pointer shadow-xs"
               >
-                View Sent Bucket ({bucketCounts.sent})
+                Go to Sent Bucket ({bucketCounts.sent})
               </button>
             )}
           </div>
         ) : viewMode === "table" ? (
-          <section className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+          /* Desktop Table View */
+          <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -1066,7 +1015,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                       {activeBucket === "sent" && "Outreach & Response"}
                       {activeBucket === "invalid" && "Disqualification"}
                     </th>
-                    <th className="py-3 px-4 text-right">Details</th>
+                    <th className="py-3 px-4 text-right">Inspect</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -1080,9 +1029,9 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                       <tr
                         key={lead.uid}
                         onClick={() => setSelectedLead(lead)}
-                        className="hover:bg-indigo-50/30 transition-colors cursor-pointer group"
+                        className="hover:bg-indigo-50/40 transition-colors cursor-pointer group"
                       >
-                        <td className="py-3.5 px-4 font-mono text-xs text-slate-400">
+                        <td className="py-3.5 px-4 font-mono text-xs text-slate-400 tabular-nums">
                           {String(lead.id).padStart(2, "0")}
                         </td>
                         <td className="py-3.5 px-4">
@@ -1100,7 +1049,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                               >
                                 <Instagram className="h-3 w-3" />@{lead.username}
                               </a>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium">
                                 {lead.batch}
                               </span>
                             </div>
@@ -1115,7 +1064,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                         <td className="py-3.5 px-4">
                           {lead.phone ? (
                             <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md tabular-nums">
                                 <Phone className="h-3 w-3" />
                                 {lead.phone}
                               </span>
@@ -1124,7 +1073,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                                   e.stopPropagation();
                                   handleCopy(lead.phone, `phone-${lead.uid}`);
                                 }}
-                                className="p-1 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
+                                className="p-1 text-slate-400 hover:text-slate-700 active:scale-90 rounded cursor-pointer"
                                 title="Copy phone number"
                               >
                                 {copiedKey === `phone-${lead.uid}` ? (
@@ -1147,10 +1096,10 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="text-xs font-semibold text-slate-800">
+                          <div className="text-xs font-bold text-slate-900 tabular-nums">
                             {lead.followers.toLocaleString()}
                           </div>
-                          <div className="text-[11px] text-slate-400">{lead.posts} posts</div>
+                          <div className="text-[11px] text-slate-400 tabular-nums">{lead.posts} posts</div>
                         </td>
 
                         {/* Interactive Triage Buttons */}
@@ -1160,23 +1109,20 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                         >
                           {activeBucket === "inbox" && (
                             <div className="flex items-center justify-center gap-2">
-                              {/* Sent Button */}
                               <button
                                 onClick={() => handleMarkSent(lead.uid)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                                title="Mark as Sent (Moves lead to Sent bucket & disappears from Main Feed)"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.97] shadow-2xs transition-all cursor-pointer"
+                                title="Mark Sent (leaves Main Feed)"
                               >
-                                <Send className="h-3.5 w-3.5" />
+                                <Send className="h-3 w-3" />
                                 Sent
                               </button>
-
-                              {/* Invalid Button */}
                               <button
                                 onClick={() => handleMarkInvalid(lead.uid)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
-                                title="Mark as Invalid (Moves lead to Invalid bucket & disappears from Main Feed)"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 active:scale-[0.97] transition-all cursor-pointer"
+                                title="Mark Invalid (leaves Main Feed)"
                               >
-                                <Ban className="h-3.5 w-3.5" />
+                                <Ban className="h-3 w-3" />
                                 Invalid
                               </button>
                             </div>
@@ -1184,19 +1130,18 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
 
                           {activeBucket === "sent" && (
                             <div className="flex items-center justify-center gap-2">
-                              {/* Replied / Awaiting Toggle */}
                               <button
                                 onClick={() => handleToggleReplied(lead.uid)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold active:scale-[0.97] transition-all cursor-pointer ${
                                   triage.replied
-                                    ? "bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
+                                    ? "bg-emerald-600 text-white shadow-2xs hover:bg-emerald-700"
                                     : "bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100"
                                 }`}
-                                title="Click to toggle Replied / Awaiting Reply"
+                                title="Click to toggle Replied status"
                               >
                                 {triage.replied ? (
                                   <>
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
                                     Replied
                                   </>
                                 ) : (
@@ -1207,10 +1152,9 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                                 )}
                               </button>
 
-                              {/* Restore to Feed */}
                               <button
                                 onClick={() => handleRestoreToInbox(lead.uid)}
-                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md active:scale-95 transition-all cursor-pointer"
                                 title="Move back to Main Feed"
                               >
                                 <RotateCcw className="h-3.5 w-3.5" />
@@ -1220,13 +1164,12 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
 
                           {activeBucket === "invalid" && (
                             <div className="flex items-center justify-center gap-2">
-                              <span className="text-[11px] px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-semibold">
+                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-semibold">
                                 Disqualified
                               </span>
                               <button
                                 onClick={() => handleRestoreToInbox(lead.uid)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors cursor-pointer"
-                                title="Restore lead back to Main Feed"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all cursor-pointer"
                               >
                                 <RotateCcw className="h-3 w-3" />
                                 Restore
@@ -1241,7 +1184,7 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                               e.stopPropagation();
                               setSelectedLead(lead);
                             }}
-                            className="px-2.5 py-1 rounded-md text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:scale-95 transition-all cursor-pointer"
                           >
                             Pitch
                           </button>
@@ -1254,7 +1197,8 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
             </div>
           </section>
         ) : viewMode === "cards" ? (
-          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          /* Mobile Native Responsive Card Stream */
+          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
             {filteredLeads.map((lead) => {
               const statusBadge =
                 WEBSITE_STATUS_BADGE[lead.websiteStatus] || WEBSITE_STATUS_BADGE.NO_WEBSITE;
@@ -1264,15 +1208,16 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                 <article
                   key={lead.uid}
                   onClick={() => setSelectedLead(lead)}
-                  className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs hover:shadow-md hover:border-indigo-300 transition-all flex flex-col justify-between cursor-pointer"
+                  className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs hover:shadow-md hover:border-indigo-300 active:scale-[0.99] transition-all flex flex-col justify-between cursor-pointer"
                 >
                   <div>
+                    {/* Header */}
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className="font-mono text-[11px] font-semibold text-slate-400">
-                          #{String(lead.id).padStart(2, "0")} • {lead.campaignLabel}
+                      <div className="min-w-0">
+                        <span className="font-mono text-[11px] font-semibold text-slate-400 tabular-nums">
+                          #{String(lead.id).padStart(2, "0")} • {lead.batch}
                         </span>
-                        <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                        <h3 className="text-base font-bold text-slate-900 tracking-tight mt-0.5 truncate">
                           {lead.businessName}
                         </h3>
                         <a
@@ -1293,35 +1238,38 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                       </span>
                     </div>
 
+                    {/* Metadata Badges */}
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                       <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md">
                         <MapPin className="h-3 w-3 text-slate-500" />
                         {lead.location}
                       </span>
-                      <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-medium">
+                      <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-semibold text-slate-700 tabular-nums">
                         {lead.followers.toLocaleString()} followers
                       </span>
                     </div>
 
-                    <p className="mt-3 text-xs text-slate-600 line-clamp-2">
+                    {/* Services snippet */}
+                    <p className="mt-2.5 text-xs text-slate-600 line-clamp-2">
                       <span className="font-semibold text-slate-800">Services: </span>
                       {lead.services}
                     </p>
 
-                    <div className="mt-3 p-3 rounded-lg bg-indigo-50/70 border border-indigo-100">
-                      <div className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 mb-1">
-                        Website Pitch Angle
+                    {/* Pitch Angle Box */}
+                    <div className="mt-3 p-3 rounded-xl bg-indigo-50/70 border border-indigo-100/90">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 mb-1">
+                        Outreach Pitch Angle
                       </div>
-                      <p className="text-xs text-slate-700 leading-relaxed line-clamp-3">
+                      <p className="text-xs text-slate-700 leading-relaxed line-clamp-2">
                         {lead.pitchAngle}
                       </p>
                     </div>
                   </div>
 
-                  {/* Card Actions & Triage Strip */}
+                  {/* Actions & Triage Controls (Optimized for Mobile Thumbs) */}
                   <div className="mt-4 pt-3 border-t border-slate-100 space-y-2.5">
                     <div className="flex items-center justify-between text-xs text-slate-700">
-                      <span className="truncate font-medium">
+                      <span className="truncate font-semibold tabular-nums">
                         {lead.phone ? `📞 ${lead.phone}` : `💬 ${lead.contactRoute}`}
                       </span>
                       <button
@@ -1329,13 +1277,13 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                           e.stopPropagation();
                           handleCopy(buildOutreachMessage(lead), `card-pitch-${lead.uid}`);
                         }}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer shrink-0"
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-bold active:scale-95 cursor-pointer shrink-0"
                       >
-                        {copiedKey === `card-pitch-${lead.uid}` ? "Copied Pitch" : "Copy Pitch"}
+                        {copiedKey === `card-pitch-${lead.uid}` ? "Copied!" : "Copy Pitch"}
                       </button>
                     </div>
 
-                    {/* Interactive Triage Buttons on Card */}
+                    {/* Main Triage Touch Targets (Min 44px height for mobile ergonomics) */}
                     <div
                       className="pt-1 flex items-center justify-between gap-2"
                       onClick={(e) => e.stopPropagation()}
@@ -1344,16 +1292,16 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                         <>
                           <button
                             onClick={() => handleMarkSent(lead.uid)}
-                            className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                            className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.97] shadow-xs transition-all cursor-pointer"
                           >
-                            <Send className="h-3.5 w-3.5" />
-                            Mark as Sent
+                            <Send className="h-4 w-4" />
+                            Mark Sent
                           </button>
                           <button
                             onClick={() => handleMarkInvalid(lead.uid)}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 cursor-pointer"
+                            className="min-h-[44px] inline-flex items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 active:scale-[0.97] transition-all cursor-pointer"
                           >
-                            <Ban className="h-3.5 w-3.5" />
+                            <Ban className="h-4 w-4" />
                             Invalid
                           </button>
                         </>
@@ -1363,27 +1311,27 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                         <>
                           <button
                             onClick={() => handleToggleReplied(lead.uid)}
-                            className={`flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold active:scale-[0.97] transition-all cursor-pointer ${
                               triage.replied
-                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs"
                                 : "bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100"
                             }`}
                           >
                             {triage.replied ? (
                               <>
-                                <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                                <CheckCircle2 className="h-4 w-4" />
                                 Replied (Click to toggle)
                               </>
                             ) : (
                               <>
-                                <Clock className="h-3.5 w-3.5 text-amber-600" />
-                                Awaiting Reply (Click when replied)
+                                <Clock className="h-4 w-4 text-amber-600" />
+                                Awaiting Reply (Tap when replied)
                               </>
                             )}
                           </button>
                           <button
                             onClick={() => handleRestoreToInbox(lead.uid)}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+                            className="min-h-[44px] px-3 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95 rounded-xl cursor-pointer"
                             title="Move back to Main Feed"
                           >
                             <RotateCcw className="h-4 w-4" />
@@ -1393,12 +1341,12 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
 
                       {activeBucket === "invalid" && (
                         <div className="w-full flex items-center justify-between">
-                          <span className="text-xs text-rose-700 font-semibold">
-                            Disqualified Lead
+                          <span className="text-xs text-rose-700 font-bold">
+                            Disqualified Record
                           </span>
                           <button
                             onClick={() => handleRestoreToInbox(lead.uid)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer"
+                            className="min-h-[44px] inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:scale-[0.97] transition-all cursor-pointer"
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                             Restore to Feed
@@ -1412,69 +1360,28 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
             })}
           </section>
         ) : (
-          /* Structured JSON Output View */
+          /* JSON View */
           <section className="space-y-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-xs">
+              <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">
-                    Structured Schema &amp; Bucket JSON Output
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Live payload filtered by bucket: <span className="font-semibold text-slate-800">{activeBucket}</span> ({filteredLeads.length} records)
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                    Structured Bucket Output
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Live JSON for active bucket ({activeBucket}) • {filteredLeads.length} records
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      handleCopy(JSON.stringify(structuredPayload, null, 2), "json-payload")
-                    }
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
-                  >
-                    {copiedKey === "json-payload" ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-400" />
-                        Copied JSON
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        Copy Structured JSON
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={() =>
+                    handleCopy(JSON.stringify(structuredPayload, null, 2), "json-payload")
+                  }
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white active:scale-95 cursor-pointer"
+                >
+                  {copiedKey === "json-payload" ? "Copied!" : "Copy JSON"}
+                </button>
               </div>
-
-              {/* Schema Fields */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 mb-4">
-                {[
-                  { field: "uid", type: "string" },
-                  { field: "bucket", type: "inbox|sent|invalid" },
-                  { field: "replied", type: "boolean" },
-                  { field: "business_name", type: "string" },
-                  { field: "location", type: "string" },
-                  { field: "phone", type: "string | null" },
-                  { field: "followers / posts", type: "number" },
-                  { field: "services", type: "string" },
-                  { field: "pitch_angle", type: "string" },
-                  { field: "profile_url", type: "uri" },
-                  { field: "bucket_stats", type: "object" },
-                  { field: "meta.filtered_count", type: "number" },
-                ].map((s) => (
-                  <div
-                    key={s.field}
-                    className="px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200"
-                  >
-                    <div className="font-mono text-[11px] font-semibold text-slate-800 truncate">
-                      {s.field}
-                    </div>
-                    <div className="font-mono text-[10px] text-indigo-600">{s.type}</div>
-                  </div>
-                ))}
-              </div>
-
-              <pre className="rounded-xl bg-slate-950 text-slate-100 p-4 text-xs font-mono overflow-x-auto max-h-[580px] leading-relaxed border border-slate-800">
+              <pre className="rounded-xl bg-slate-950 text-slate-100 p-4 text-xs font-mono overflow-x-auto max-h-[500px] border border-slate-800">
                 {JSON.stringify(structuredPayload, null, 2)}
               </pre>
             </div>
@@ -1482,176 +1389,248 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
         )}
       </main>
 
-      {/* Slide-over Detail & Outreach Drawer */}
+      {/* MOBILE NATIVE BOTTOM FLOATING DOCK (Emil Kowalski mobile-native standard) */}
+      <nav className="sm:hidden fixed bottom-3 inset-x-3 z-40 max-w-md mx-auto pointer-events-auto safe-bottom-dock">
+        <div className="bg-white/92 backdrop-blur-2xl border border-slate-200/90 shadow-xl rounded-2xl p-1.5 flex items-center justify-around">
+          {/* Main Feed Tab */}
+          <button
+            onClick={() => {
+              setActiveBucket("inbox");
+              setSelectedLead(null);
+            }}
+            className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-all cursor-pointer ${
+              activeBucket === "inbox"
+                ? "bg-slate-900 text-white shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <div className="relative">
+              <Inbox className="h-4.5 w-4.5" />
+              <span
+                className={`absolute -top-1.5 -right-2.5 px-1 py-0.2 rounded-full text-[9px] font-extrabold tabular-nums ${
+                  activeBucket === "inbox"
+                    ? "bg-indigo-500 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {bucketCounts.inbox}
+              </span>
+            </div>
+            <span className="text-[10px]">Feed</span>
+          </button>
+
+          {/* Sent Bucket Tab */}
+          <button
+            onClick={() => {
+              setActiveBucket("sent");
+              setSelectedLead(null);
+            }}
+            className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-all cursor-pointer ${
+              activeBucket === "sent"
+                ? "bg-slate-900 text-white shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <div className="relative">
+              <Send className="h-4.5 w-4.5" />
+              <span
+                className={`absolute -top-1.5 -right-2.5 px-1 py-0.2 rounded-full text-[9px] font-extrabold tabular-nums ${
+                  activeBucket === "sent"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {bucketCounts.sent}
+              </span>
+            </div>
+            <span className="text-[10px]">Sent</span>
+          </button>
+
+          {/* Invalid Bucket Tab */}
+          <button
+            onClick={() => {
+              setActiveBucket("invalid");
+              setSelectedLead(null);
+            }}
+            className={`flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-all cursor-pointer ${
+              activeBucket === "invalid"
+                ? "bg-slate-900 text-white shadow-xs font-bold"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <div className="relative">
+              <Ban className="h-4.5 w-4.5" />
+              <span
+                className={`absolute -top-1.5 -right-2.5 px-1 py-0.2 rounded-full text-[9px] font-extrabold tabular-nums ${
+                  activeBucket === "invalid"
+                    ? "bg-rose-500 text-white"
+                    : "bg-slate-200 text-slate-700"
+                }`}
+              >
+                {bucketCounts.invalid}
+              </span>
+            </div>
+            <span className="text-[10px]">Invalid</span>
+          </button>
+
+          {/* Filter Modal Trigger */}
+          <button
+            onClick={() => setShowMobileFilters(true)}
+            className="flex-1 py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-600 active:scale-95 transition-all cursor-pointer"
+          >
+            <SlidersHorizontal className="h-4.5 w-4.5" />
+            <span className="text-[10px]">Filter</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* DETAIL MODAL: Desktop Slide-over Drawer & Mobile Bottom Sheet (Vaul style) */}
       {selectedLead && (
         <div
-          className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex flex-col justify-end md:flex-row md:justify-end bg-slate-900/50 backdrop-blur-xs transition-opacity"
           onClick={() => setSelectedLead(null)}
         >
           <div
-            className="w-full max-w-xl bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col overflow-hidden"
+            className="w-full md:max-w-xl bg-white max-h-[90dvh] md:max-h-full md:h-full rounded-t-3xl md:rounded-t-none shadow-2xl border-t md:border-t-0 md:border-l border-slate-200 flex flex-col overflow-hidden animate-in slide-in-from-bottom md:slide-in-from-right duration-200"
             onClick={(e) => e.stopPropagation()}
+            style={{ overscrollBehavior: "contain" }}
           >
-            <div className="px-6 py-4 border-b border-slate-200 flex items-start justify-between gap-4 bg-slate-50">
+            {/* Mobile Sheet Drag Handle */}
+            <div className="md:hidden pt-2 pb-1 flex justify-center shrink-0">
+              <div className="h-1.5 w-12 rounded-full bg-slate-300" />
+            </div>
+
+            {/* Drawer Header */}
+            <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-semibold text-slate-400">
-                    LEAD #{String(selectedLead.id).padStart(2, "0")}
+                  <span className="font-mono text-xs font-semibold text-slate-400 tabular-nums">
+                    #{String(selectedLead.id).padStart(2, "0")}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                     {selectedLead.websiteStatus}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-800">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">
                     Bucket: {triageMap[selectedLead.uid]?.bucket || "inbox"}
                   </span>
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 mt-1">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight mt-1">
                   {selectedLead.businessName}
                 </h2>
                 <a
                   href={selectedLead.profileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm font-mono text-indigo-600 hover:underline mt-0.5"
+                  className="inline-flex items-center gap-1.5 text-xs font-mono text-indigo-600 hover:underline mt-0.5"
                 >
-                  <Instagram className="h-4 w-4" />@{selectedLead.username}
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <Instagram className="h-3.5 w-3.5" />@{selectedLead.username}
+                  <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
               <button
                 onClick={() => setSelectedLead(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 active:scale-95 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {/* Triage Actions Strip inside Drawer */}
-              <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 space-y-2.5">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                  Lead Triage Actions
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+            {/* Drawer Body Scroll */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Triage Action Strip in Drawer */}
+              <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200/90 space-y-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  Outreach Action
+                </span>
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleMarkSent(selectedLead.uid)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                    className="min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.97] transition-all cursor-pointer shadow-xs"
                   >
-                    <Send className="h-3.5 w-3.5" />
-                    Mark as Sent
+                    <Send className="h-4 w-4" />
+                    Mark Sent
                   </button>
-
                   <button
                     onClick={() => handleToggleReplied(selectedLead.uid)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold active:scale-[0.97] transition-all cursor-pointer ${
                       triageMap[selectedLead.uid]?.replied
-                        ? "bg-emerald-700 text-white"
-                        : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                        ? "bg-emerald-700 text-white shadow-xs"
+                        : "bg-white text-slate-800 border border-slate-300 hover:bg-slate-50"
                     }`}
                   >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                    {triageMap[selectedLead.uid]?.replied ? "Replied (Active)" : "Mark as Replied"}
-                  </button>
-
-                  <button
-                    onClick={() => handleMarkInvalid(selectedLead.uid)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 cursor-pointer"
-                  >
-                    <Ban className="h-3.5 w-3.5" />
-                    Mark Invalid
-                  </button>
-
-                  <button
-                    onClick={() => handleRestoreToInbox(selectedLead.uid)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Restore to Feed
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    {triageMap[selectedLead.uid]?.replied ? "Replied (Active)" : "Mark Replied"}
                   </button>
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] font-medium text-slate-500">Followers</div>
-                  <div className="text-base font-bold text-slate-900 mt-0.5">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase">Followers</div>
+                  <div className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                     {selectedLead.followers.toLocaleString()}
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] font-medium text-slate-500">Posts</div>
-                  <div className="text-base font-bold text-slate-900 mt-0.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase">Posts</div>
+                  <div className="text-base font-bold text-slate-900 mt-0.5 tabular-nums">
                     {selectedLead.posts.toLocaleString()}
                   </div>
                 </div>
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] font-medium text-slate-500">Status</div>
-                  <div className="text-xs font-bold text-indigo-700 mt-1">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase">Status</div>
+                  <div className="text-xs font-bold text-indigo-700 mt-1 truncate">
                     {triageMap[selectedLead.uid]?.replied
                       ? "Replied"
                       : triageMap[selectedLead.uid]?.bucket === "sent"
-                      ? "Awaiting Reply"
+                      ? "Awaiting"
                       : triageMap[selectedLead.uid]?.bucket === "invalid"
-                      ? "Disqualified"
+                      ? "Invalid"
                       : "New Lead"}
                   </div>
                 </div>
               </div>
 
-              {/* Location & Contact */}
-              <div className="space-y-2.5 text-sm">
-                <div className="flex items-start gap-2.5">
-                  <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">Location</div>
-                    <div className="text-slate-800">{selectedLead.location}</div>
-                  </div>
+              {/* Location & Contact Info */}
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <MapPin className="h-4 w-4 text-slate-400 shrink-0" />
+                  <span className="font-semibold">{selectedLead.location}</span>
                 </div>
-                <div className="flex items-start gap-2.5">
-                  <Phone className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="text-xs font-semibold text-slate-500">Contact Route</div>
-                    <div className="text-slate-800 font-medium">{selectedLead.contactRoute}</div>
+                {selectedLead.phone && (
+                  <div className="flex items-center gap-2 text-slate-800">
+                    <Phone className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span className="font-semibold tabular-nums">{selectedLead.phone}</span>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Bio & Services */}
-              <div className="space-y-3">
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                    Verified Services
-                  </div>
-                  <p className="text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-3">
-                    {selectedLead.services}
-                  </p>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                    Instagram Bio Snapshot
-                  </div>
-                  <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 leading-relaxed">
-                    {selectedLead.bio}
-                  </p>
-                </div>
+              {/* Verified Services */}
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Services
+                </span>
+                <p className="mt-1 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 leading-relaxed">
+                  {selectedLead.services}
+                </p>
               </div>
 
               {/* Pitch Angle */}
-              <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200">
-                <div className="text-xs font-bold uppercase tracking-wider text-indigo-800 mb-1">
-                  Tailored Sales Pitch Angle
-                </div>
-                <p className="text-sm text-indigo-950 leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-indigo-50 border border-indigo-200">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-800">
+                  Sales Pitch Angle
+                </span>
+                <p className="mt-1 text-xs text-indigo-950 leading-relaxed">
                   {selectedLead.pitchAngle}
                 </p>
               </div>
 
-              {/* Ready-to-send Outreach Template */}
+              {/* Ready-to-Send Outreach Message */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Personalized Outreach Message
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Outreach Script
                   </span>
                   <button
                     onClick={() =>
@@ -1660,45 +1639,36 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                         `drawer-msg-${selectedLead.uid}`
                       )
                     }
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white active:scale-95 cursor-pointer"
                   >
-                    {copiedKey === `drawer-msg-${selectedLead.uid}` ? (
-                      <>
-                        <Check className="h-3.5 w-3.5 text-emerald-400" />
-                        Copied Message
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        Copy Outreach Script
-                      </>
-                    )}
+                    {copiedKey === `drawer-msg-${selectedLead.uid}` ? "Copied!" : "Copy Script"}
                   </button>
                 </div>
-                <pre className="whitespace-pre-wrap font-sans text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-4 leading-relaxed">
+                <pre className="whitespace-pre-wrap font-sans text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3.5 leading-relaxed">
                   {buildOutreachMessage(selectedLead)}
                 </pre>
               </div>
             </div>
 
-            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+            {/* Fixed Drawer Footer (Safe Area Padded) */}
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2.5 safe-bottom">
               <a
                 href={selectedLead.profileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                className="flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.97] transition-all cursor-pointer"
               >
                 <Instagram className="h-4 w-4" />
                 Open Instagram
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ExternalLink className="h-3 w-3" />
               </a>
               {selectedLead.phone && (
                 <a
                   href={`tel:${selectedLead.phone.replace(/\s+/g, "")}`}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors"
+                  className="min-h-[44px] inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 active:scale-[0.97] transition-all cursor-pointer"
                 >
                   <Phone className="h-4 w-4" />
-                  Call {selectedLead.phone}
+                  Call
                 </a>
               )}
             </div>
@@ -1706,131 +1676,200 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
         </div>
       )}
 
-      {/* Database Connection Status & Neon Sync Modal */}
+      {/* MOBILE FILTERS BOTTOM SHEET */}
+      {showMobileFilters && (
+        <div
+          className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/50 backdrop-blur-xs"
+          onClick={() => setShowMobileFilters(false)}
+        >
+          <div
+            className="w-full bg-white rounded-t-3xl shadow-2xl p-5 space-y-4 max-h-[85dvh] overflow-y-auto safe-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="h-1.5 w-12 rounded-full bg-slate-300 mx-auto -mt-2 mb-2" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                Filter &amp; Sort Leads
+              </h3>
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                className="p-1 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Batch Filter */}
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-700">Batch Target:</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["all", "batch-1", "batch-2", "batch-3"] as BatchFilter[]).map((b) => (
+                  <button
+                    key={b}
+                    onClick={() => handleBatchChange(b)}
+                    className={`py-2 rounded-xl text-xs font-bold capitalize active:scale-95 ${
+                      batchFilter === b
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {b === "all" ? "All" : b.replace("batch-", "B")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contact Route */}
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-700">Contact Route:</span>
+              <select
+                value={contactFilter}
+                onChange={(e) => setContactFilter(e.target.value as ContactFilter)}
+                className="w-full px-3 py-2 text-[16px] rounded-xl border border-slate-200 bg-slate-50"
+              >
+                <option value="all">All Contact Routes</option>
+                <option value="phone">Has Direct Phone</option>
+                <option value="email">Has Email</option>
+                <option value="dm">Instagram DM Only</option>
+              </select>
+            </div>
+
+            {/* Region / Location */}
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-700">Region ({uniqueLocations.length}):</span>
+              <select
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                className="w-full px-3 py-2 text-[16px] rounded-xl border border-slate-200 bg-slate-50"
+              >
+                <option value="all">All Regions ({uniqueLocations.length})</option>
+                {uniqueLocations.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort */}
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-700">Sort By:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="w-full px-3 py-2 text-[16px] rounded-xl border border-slate-200 bg-slate-50"
+              >
+                <option value="id-asc">Default Order (#)</option>
+                <option value="followers-desc">Followers (High → Low)</option>
+                <option value="followers-asc">Followers (Low → High)</option>
+                <option value="posts-desc">Posts (Most Active)</option>
+                <option value="name-asc">Business Name (A–Z)</option>
+              </select>
+            </div>
+
+            <button
+              onClick={() => setShowMobileFilters(false)}
+              className="w-full min-h-[44px] py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs active:scale-[0.97]"
+            >
+              Apply Filters ({filteredLeads.length} matching)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DATABASE & CLOUD SYNC MODAL */}
       {showDatabaseModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
           onClick={() => setShowDatabaseModal(false)}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+            className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90dvh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center">
-                  <Database className="h-5 w-5" />
+                <div className="h-8 w-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
+                  <Database className="h-4.5 w-4.5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    Connected Databases &amp; Cloud Storage
+                  <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                    Connected Databases
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    Environment database connections and synchronization options
-                  </p>
+                  <p className="text-xs text-slate-500">Environment status &amp; sync</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowDatabaseModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 active:scale-95 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-4">
-              {/* Database Status Cards */}
-              <div className="space-y-3">
-                {/* Neon Postgres */}
-                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">Neon Postgres</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                        CONFIGURED &amp; READY
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Neon MCP server configured at <code className="font-mono text-emerald-800">https://mcp.neon.tech/mcp</code>. Ready for serverless branching and cloud sync.
-                    </p>
+            <div className="p-5 overflow-y-auto space-y-3.5">
+              {/* Neon Card */}
+              <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-slate-900">Neon Postgres</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      READY (MCP)
+                    </span>
                   </div>
-                  <button
-                    onClick={() => handleCopy(neonSqlMigration, "neon-sql")}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700 text-white hover:bg-emerald-800 cursor-pointer shrink-0"
-                  >
-                    {copiedKey === "neon-sql" ? "Copied SQL" : "Copy Neon SQL"}
-                  </button>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Serverless Postgres endpoint: <code className="font-mono text-emerald-800">https://mcp.neon.tech/mcp</code>.
+                  </p>
                 </div>
+                <button
+                  onClick={() => handleCopy(neonSqlMigration, "neon-sql")}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-700 text-white active:scale-95 cursor-pointer shrink-0"
+                >
+                  {copiedKey === "neon-sql" ? "Copied!" : "Copy SQL"}
+                </button>
+              </div>
 
-                {/* Supabase */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">Supabase</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
-                        CONNECTED (MCP)
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Active healthy project: <code className="font-mono text-indigo-700">SamCarRentalOfficial</code> (ref: bhcxnfnrzaoicmosuodc, Postgres 17).
-                    </p>
+              {/* Supabase Card */}
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-slate-900">Supabase</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                      CONNECTED
+                    </span>
                   </div>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Active healthy project: <code className="font-mono text-indigo-700">SamCarRentalOfficial</code> (Postgres 17).
+                  </p>
                 </div>
+              </div>
 
-                {/* AgentMemory */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">AgentMemory</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
-                        PERSISTENT (KV)
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Local persistent key-value store at <code className="font-mono text-purple-700">~/.agentmemory/standalone.json</code>. Enforcing 0 duplicate leads policy.
-                    </p>
+              {/* AgentMemory Card */}
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-slate-900">AgentMemory</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                      PERSISTENT KV
+                    </span>
                   </div>
-                </div>
-
-                {/* Memory Graph */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-slate-900">Memory Graph (SQLite)</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
-                        LOCAL SQLITE
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      SQLite graph storage configured at <code className="font-mono text-slate-700">memory_bank/data/memory-graph.db</code>.
-                    </p>
-                  </div>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Enforcing zero-duplicate leads policy at <code className="font-mono text-purple-700">~/.agentmemory/standalone.json</code>.
+                  </p>
                 </div>
               </div>
 
               {/* Edge Local Storage Note */}
-              <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 leading-relaxed">
+              <div className="p-3 rounded-xl bg-slate-100 text-xs text-slate-700 leading-relaxed">
                 <span className="font-bold text-slate-900">⚡ Live Edge Persistence: </span>
-                All your triage actions (Sent, Invalid, and Replied markers) are persisted with zero network latency using cross-tab synchronized local edge storage. They survive page refreshes and browser restarts.
-              </div>
-
-              {/* Neon SQL Schema Preview */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Neon Postgres Triage Schema
-                  </span>
-                </div>
-                <pre className="rounded-xl bg-slate-950 text-slate-100 p-3 text-[11px] font-mono overflow-x-auto max-h-48 border border-slate-800">
-                  {neonSqlMigration}
-                </pre>
+                All triage actions (Sent, Invalid, and Replied markers) are persisted with zero network latency using cross-tab synchronized local storage. They survive page refreshes and browser restarts.
               </div>
             </div>
 
-            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
               <button
                 onClick={() => setShowDatabaseModal(false)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white active:scale-95 cursor-pointer"
               >
                 Close
               </button>
