@@ -145,3 +145,10 @@ npm run deploy
 
 ## 📄 License
 MIT License. Created by [getwebdevhq](https://github.com/getwebdevhq).
+
+## 📡 Multi-Channel Reach Compatibility & Credentials
+
+Agent-Reach retains full backward compatibility with the upstream agent skill channel ecosystem for multi-platform research:
+- **Authentication Environment Boundaries**: Direct commands require environment credentials (e.g. TWITTER_AUTH_TOKEN and TWITTER_CT0 for Twitter/X).
+- **Video & Social Extraction**: bili-cli for Bilibili; pipeline xiaohongshu.py  → OpenCLI ▸ xiaohongshu-mcp ▸ xhs-cli for Xiaohongshu.
+- **Recruitment & Professional Channels**: Setup via agent command (e.g. 帮我配 Boss直聘).

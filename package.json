@@ -6,7 +6,7 @@
     "web"
   ],
   "scripts": {
-    "build:web": "cd web && npm install && npm run build",
+    "build:web": "npm --prefix web run build",
     "build": "npm run build:web",
     "dev:web": "cd web && npm run dev",
     "dev:worker": "wrangler dev",

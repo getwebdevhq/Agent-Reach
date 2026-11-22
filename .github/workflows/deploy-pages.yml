@@ -34,11 +34,15 @@ jobs:
 
       - name: Setup Pages Configuration
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Install Dependencies
         run: npm ci
 
       - name: Build Next.js Static Export
+        env:
+          NEXT_PUBLIC_BASE_PATH: /Agent-Reach
         run: npm run build
 
       - name: Upload Pages Artifact
