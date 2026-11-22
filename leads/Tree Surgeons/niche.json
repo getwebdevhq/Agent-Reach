@@ -1,0 +1,27 @@
+{
+  "id": "uk-tree-surgeons",
+  "name": "Tree Surgeons",
+  "category": "Arboriculture & Tree Care",
+  "country": "United Kingdom",
+  "leadCount": 350,
+  "verifiedNoWebsite": 350,
+  "artPreset": "verdant",
+  "description": "Verified UK Tree Surgeons and Arborists operating on Instagram without a website.",
+  "batches": [
+    {
+      "name": "Batch 1",
+      "leads": 100,
+      "file": "batches/uk_tree_surgeons_100_leads.json"
+    },
+    {
+      "name": "Batch 2",
+      "leads": 100,
+      "file": "batches/uk_tree_surgeons_100_more_leads.json"
+    },
+    {
+      "name": "Batch 3",
+      "leads": 150,
+      "file": "batches/uk_tree_surgeons_150_more_leads.json"
+    }
+  ]
+}

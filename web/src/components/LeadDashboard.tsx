@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import type { BatchFilter, BucketType, Lead, LeadBucketRecord } from "@/lib/leads";
 import { fetchRemoteTriage, persistRemoteTriage } from "@/lib/database";
+import Link from "next/link";
+import NicheFolderExplorer from "@/components/NicheFolderExplorer";
 
 function Instagram({ className }: { className?: string }) {
   return (
@@ -592,6 +594,15 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
                 </span>
               </button>
 
+              <Link
+                href="/demo"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 active:scale-[0.97] transition-all cursor-pointer"
+                title="View Full Glass Folder Cards 3D Interactive Demo"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                <span>Glass Folders Demo</span>
+              </Link>
+
               <button
                 onClick={() => setShowMobileFilters(true)}
                 className="sm:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 active:scale-[0.97] transition-all cursor-pointer"
@@ -726,6 +737,15 @@ CREATE INDEX IF NOT EXISTS idx_lead_triage_replied ON lead_triage (bucket, repli
 
       {/* Main Container - Extra bottom padding for Mobile Native Dock */}
       <main className="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 pb-28 sm:pb-12">
+        {/* Niche Folder System: 3D Frosted Glass Folders */}
+        <NicheFolderExplorer
+          activeBatch={batchFilter}
+          onSelectBatch={handleBatchChange}
+          selectedNiche="uk-tree-surgeons"
+          onSelectNiche={() => {}}
+          totalLeadsCount={ukLeads.length}
+        />
+
         {/* Bucket Status Header Banner */}
         <section className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
